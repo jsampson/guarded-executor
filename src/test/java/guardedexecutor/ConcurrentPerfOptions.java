@@ -20,8 +20,6 @@ import static guardedexecutor.ConcurrentPerfSubjectImpl.*;
 
 public final class ConcurrentPerfOptions {
 
-  // Recommended VM options: -Xcomp -Xbatch -XX:-UseBiasedLocking -XX:+AggressiveOpts
-
   private ConcurrentPerfOptions() {}
 
   /** The subjects to include in the performance test. */

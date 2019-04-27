@@ -15,6 +15,16 @@ holding an exclusive lock, optionally waiting for a guard condition to
 become true before executing the task. Tasks will usually be executed in
 the calling thread, but waiting threads may execute tasks for each other.
 
+Running the Tests
+-----------------
+
+You can run the unit tests with "`mvn test`". For the performance test,
+the `run-remote.sh` script is provided as a simple example of running on
+a remote server. Copy the `run-remote-config-example.sh` file into your
+own `run-remote-config.sh` file and edit it according to your particular
+environment. Also see the `ConcurrentPerfOptions` class for additional
+configuration options for the run.
+
 Reviewing and Contributing
 --------------------------
 

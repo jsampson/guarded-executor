@@ -1,3 +1,5 @@
 /*.iml
 /.idea/
 /target/
+/run-remote-tmp-*/
+/run-remote-config.sh
