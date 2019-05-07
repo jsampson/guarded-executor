@@ -1051,22 +1051,34 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     }
   }
 
-  private void executeTasksUpTo(final Node last, Node priorLast) {
-    if (last == null) {
-      return;
+  private void executeTasksUpTo(Node last, Node priorLast) {
+    if (last != null) {
+      Node head = updateNextLinksUpTo(last);
+      executeTasksFromHead(head, priorLast);
+      cleanUpCompletedNodes(head, last);
     }
+  }
 
-    // Step 1: traverse backward, updating 'next' links and storing head link locally
+  /**
+   * Traverse backward, updating 'next' links and identifying the head of the queue.
+   * The 'next' links form a linked list starting at the returned node and ending at
+   * the given node.
+   */
+  private Node updateNextLinksUpTo(Node last) {
     Node next = last;
     for (Node curr = last.prev; curr != null; next = curr, curr = curr.prev) {
       curr.next = next;
     }
-    last.next = null; // 'next' is only used internally to this method, so we can do as we like
+    last.next = null;
+    return next;
+  }
 
-    final Node head = next;
+  /**
+   * Actually execute nodes in queue order, starting from head and following 'next' links.
+   */
+  private void executeTasksFromHead(final Node head, Node priorLast) {
     Node runningHead = head;
 
-    // Step 2: iterate, attempting to execute nodes, until we pass last
     START_OVER:
     while (true) {
       final Node startingPoint;
@@ -1139,10 +1151,15 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       // Either nothing was executed, or some prefix were executed and the remainder skipped.
       break START_OVER;
     }
+  }
 
-    // Step 3: traverse forward, nulling 'next' & updating 'prev' to delete completed nodes
-    // (This cleanup is not essential, so it does not have to be in a finally block.)
+  /**
+   * Traverse forward from 'head', nulling 'next' and updating 'prev' to delete completed nodes.
+   * (This cleanup is not essential, so it does not have to be in a finally block.)
+   */
+  private void cleanUpCompletedNodes(final Node head, final Node last) {
     Node prev = null;
+    Node next;
     for (Node curr = head; curr != last; curr = next) {
       next = curr.next;
       curr.next = null;
