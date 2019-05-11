@@ -1,0 +1,1445 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GuardedExecutor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">guarded-executor</a> &gt; <a href="index.source.html" class="el_package">guardedexecutor</a> &gt; <span class="el_source">GuardedExecutor.java</span></div><h1>GuardedExecutor.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2019 by Justin T. Sampson
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package guardedexecutor;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.AbstractOwnableSynchronizer;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+
+import static java.util.Objects.requireNonNull;
+
+/**
+ * An executor that executes each task while holding an exclusive lock, optionally waiting for a
+ * guard condition to become true before executing the task. Tasks will usually be executed in the
+ * calling thread, but waiting threads may execute tasks for each other.
+ *
+ * &lt;p&gt;This class is intended as a replacement for {@link java.util.concurrent.locks.ReentrantLock
+ * ReentrantLock}. Code using {@code GuardedExecutor} is significantly less error-prone and more
+ * readable than code using {@code ReentrantLock} because all signalling is &lt;a
+ * href=&quot;https://en.wikipedia.org/wiki/Monitor_(synchronization)#Implicit_signaling&quot;&gt;implicit&lt;/a&gt;.
+ * {@code GuardedExecutor} is also perfectly fair, while consistently beating the performance of a
+ * {@code ReentrantLock} using the &quot;fair&quot; ordering policy and even beating the performance of a
+ * {@code ReentrantLock} using the default non-fair ordering policy for many workloads.
+ *
+ * &lt;p&gt;The exclusive lock is completely encapsulated within the executor, so the only way to perform
+ * any work protected by the lock is by submitting tasks via the various {@code executeXXX} and
+ * {@code tryExecuteXXX} methods. A task may not be submitted to the executor from within another
+ * executing task (that is, the lock is not reentrant). The encapsulated lock provides the same
+ * synchronization semantics as the built-in Java language synchronization primitives.
+ *
+ * &lt;p&gt;Every guard and task submitted to this executor will be executed only when holding the
+ * encapsulated exclusive lock, though they may be executed in arbitrary other threads that are also
+ * executing, or attempting to execute, tasks using the same executor, as part of the automatic
+ * signalling mechanism.
+ *
+ * &lt;p&gt;&lt;b&gt;You must ensure&lt;/b&gt; that any change of state that affects the value of any guard submitted
+ * to this executor only occurs within a task executed by the same executor. Every guard must
+ * consistently return the same value from the time any task finishes executing until the next task
+ * starts executing. This restriction implies that guards themselves must not modify any such state.
+ *
+ * &lt;p&gt;An instance of this class is serializable, but all of its internal state (including pending
+ * tasks) is considered transient and not included in the serialized form.
+ *
+ * &lt;h2&gt;Limitations&lt;/h2&gt;
+ *
+ * &lt;p&gt;While this class is a potential replacement for many uses of {@link
+ * java.util.concurrent.locks.ReentrantLock ReentrantLock}, two limitations reduce its ability to be
+ * dropped into some contexts.
+ *
+ * &lt;p&gt;&lt;b&gt;Tasks cannot execute additional tasks:&lt;/b&gt; Since a {@code GuardedExecutor} does not allow
+ * tasks to be executed from within other tasks, any code that depends on the reentrant nature of
+ * {@code ReentrantLock} will have to be rewritten carefully when using {@code GuardedExecutor}.
+ *
+ * &lt;p&gt;&lt;b&gt;Tasks might execute in other threads:&lt;/b&gt; Since a {@code GuardedExecutor} will execute
+ * tasks in other threads in order to optimize throughput under heavy load, any code that accesses
+ * thread-local state will have to be rewritten carefully when using {@code GuardedExecutor}.
+ *
+ * &lt;h2&gt;Performance and Fairness Benefits&lt;/h2&gt;
+ *
+ * &lt;p&gt;{@code GuardedExecutor} offers several performance and fairness benefits relative to {@code
+ * synchronized} and {@code ReentrantLock} due to its implicit signalling design. A {@code
+ * GuardedExecutor} tends to be more fair than a &quot;fair&quot; {@code ReentrantLock} and often just as
+ * performant as a non-fair one.
+ * &lt;ul&gt;
+ * &lt;li&gt;With {@code synchronized} or {@code ReentrantLock}, a thread must first block to acquire the
+ * lock, then awaken when the lock is available, and then evaluate its guard, and then block again
+ * if the guard evaluated as false. With {@code GuardedExecutor}, a thread will often block just a
+ * single time and find its task already executed when it awakens.
+ * &lt;li&gt;With {@code synchronized} or {@code ReentrantLock}, a thread that encounters a timeout or
+ * interrupt must reacquire the lock before continuing, which is itself an untimed and
+ * uninterruptible action. With {@code GuardedExecutor}, such a thread continues immediately without
+ * blocking again.
+ * &lt;li&gt;Even with a &quot;fair&quot; {@code ReentrantLock}, a thread will lose its place in the queue of
+ * threads attempting to acquire the lock whenever it blocks on a condition. With {@code
+ * GuardedExecutor}, a thread is assigned a position in the queue that is strictly honored right up
+ * until its task is actually executed.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Note that {@code GuardedExecutor} counts timeout duration starting from the first time the
+ * calling thread actually blocks, and only checks for timeout immediately before blocking, in order
+ * to minimize expensive clock accesses. Therefore if a thread ends up executing a long-running task
+ * from another thread it will not timeout immediately. However, this is no worse than {@code
+ * synchronized} or {@code ReentrantLock} for the reason pointed out above&amp;mdash;if such a thread
+ * times out while waiting because another thread is executing a long-running task, it has to wait
+ * just as long for that task to complete before being able to acquire the lock and respond to its
+ * own timeout.
+ *
+ * &lt;h2&gt;Comparison with {@code synchronized} and {@code ReentrantLock}&lt;/h2&gt;
+ *
+ * &lt;p&gt;The following examples show a simple threadsafe holder expressed using {@code synchronized},
+ * {@link java.util.concurrent.locks.ReentrantLock ReentrantLock}, and {@code GuardedExecutor}.
+ *
+ * &lt;h3&gt;{@code synchronized}&lt;/h3&gt;
+ *
+ * &lt;p&gt;This version is fairly concise, largely because the synchronization mechanism used is built
+ * into the language and runtime. But the programmer has to remember to avoid a couple of common
+ * bugs: The {@code wait()} must be inside a {@code while} instead of an {@code if}, and {@code
+ * notifyAll()} must be used instead of {@code notify()} because there are two different logical
+ * conditions being awaited. &lt;pre&gt;   {@code
+ *
+ *   public class SafeBox&lt;V&gt; {
+ *     private V value;
+ *
+ *     public synchronized V get() throws InterruptedException {
+ *       while (value == null) {
+ *         wait();
+ *       }
+ *       V result = value;
+ *       value = null;
+ *       notifyAll();
+ *       return result;
+ *     }
+ *
+ *     public synchronized void set(V newValue) throws InterruptedException {
+ *       Objects.requireNonNull(newValue);
+ *       while (value != null) {
+ *         wait();
+ *       }
+ *       value = newValue;
+ *       notifyAll();
+ *     }
+ *   }}&lt;/pre&gt;
+ *
+ * &lt;h3&gt;{@code ReentrantLock}&lt;/h3&gt;
+ *
+ * &lt;p&gt;This version is much more verbose than the {@code synchronized} version, and still suffers
+ * from the need for the programmer to remember to use {@code while} instead of {@code if}.
+ * However, one advantage is that we can introduce two separate {@code Condition} objects, which
+ * allows us to use {@code signal()} instead of {@code signalAll()}, which may be a performance
+ * benefit. &lt;pre&gt;   {@code
+ *
+ *   public class SafeBox&lt;V&gt; {
+ *     private final ReentrantLock lock = new ReentrantLock();
+ *     private final Condition valuePresent = lock.newCondition();
+ *     private final Condition valueAbsent = lock.newCondition();
+ *     private V value;
+ *
+ *     public V get() throws InterruptedException {
+ *       lock.lock();
+ *       try {
+ *         while (value == null) {
+ *           valuePresent.await();
+ *         }
+ *         V result = value;
+ *         value = null;
+ *         valueAbsent.signal();
+ *         return result;
+ *       } finally {
+ *         lock.unlock();
+ *       }
+ *     }
+ *
+ *     public void set(V newValue) throws InterruptedException {
+ *       Objects.requireNonNull(newValue);
+ *       lock.lock();
+ *       try {
+ *         while (value != null) {
+ *           valueAbsent.await();
+ *         }
+ *         value = newValue;
+ *         valuePresent.signal();
+ *       } finally {
+ *         lock.unlock();
+ *       }
+ *     }
+ *   }}&lt;/pre&gt;
+ *
+ * &lt;h3&gt;{@code GuardedExecutor}&lt;/h3&gt;
+ *
+ * &lt;p&gt;This version is the shortest of all. {@code GuardedExecutor} implements the same efficient
+ * signalling as we had to hand-code in the {@code ReentrantLock} version above, and the programmer
+ * no longer has to hand-code the wait loop, and therefore doesn't have to remember to use {@code
+ * while} instead of {@code if}. The need to explicitly unlock the lock in a {@code finally} block
+ * is also eliminated. &lt;pre&gt;   {@code
+ *
+ *   public class SafeBox&lt;V&gt; {
+ *     private final GuardedExecutor executor = new GuardedExecutor();
+ *     private V value;
+ *
+ *     public V get() throws InterruptedException {
+ *       return executor.executeWhen(() -&gt; value != null, () -&gt; {
+ *         V result = value;
+ *         value = null;
+ *         return result;
+ *       });
+ *     }
+ *
+ *     public void set(V newValue) throws InterruptedException {
+ *       Objects.requireNonNull(newValue);
+ *       executor.executeWhen(() -&gt; value == null, () -&gt; {
+ *         value = newValue;
+ *       });
+ *     }
+ *   }}&lt;/pre&gt;
+ *
+ * &lt;h2&gt;Memory Consistency Effects&lt;/h2&gt;
+ *
+ * &lt;p&gt;A {@code GuardedExecutor} imposes a total ordering over all task executions and a partial
+ * ordering over all guard executions. A task is executed at most once. Any single execution of a
+ * guard is ordered between two immediately adjacent task executions, but a guard may be executed
+ * any number of times before or after its associated task and no ordering may be assumed among
+ * guard executions except as implied transitively by their ordering relative to task executions.
+ * The implementation offers the following &lt;i&gt;happens-before&lt;/i&gt; guarantees:
+ * &lt;ul&gt;
+ * &lt;li&gt;The completion of any task execution (whether normal or exceptional) &lt;i&gt;happens-before&lt;/i&gt;
+ * the execution of any subsequent task or guard by the same executor.
+ * &lt;li&gt;The completion of any guard execution (whether normal or exceptional) &lt;i&gt;happens-before&lt;/i&gt;
+ * the execution of any subsequent task by the same executor.
+ * &lt;li&gt;If a task with an associated guard is ever executed, then that guard was executed at least
+ * once such that (a) completion of the immediately preceding task &lt;i&gt;happens-before&lt;/i&gt; that
+ * execution of the guard, (b) that execution of the guard returned {@code true}, and (c) the return
+ * of that execution of the guard &lt;i&gt;happens-before&lt;/i&gt; the execution of its associated task.
+ * &lt;li&gt;The call to any execution method &lt;i&gt;happens-before&lt;/i&gt; any execution of the given task or
+ * guard.
+ * &lt;li&gt;If an execution method returns normally, the given task was executed exactly once and the
+ * completion of that execution &lt;i&gt;happens-before&lt;/i&gt; the return from the execution method.
+ * &lt;li&gt;If an execution method propagates a throwable thrown by the given guard, either by rethrowing
+ * the same throwable or by wrapping it before rethrowing, then (a) the completion of that execution
+ * of the guard &lt;i&gt;happens-before&lt;/i&gt; the execution method propagating that throwable and (b) the
+ * given task was not and never will be executed.
+ * &lt;li&gt;If an execution method propagates a throwable thrown by the given task, either by rethrowing
+ * the same throwable or by wrapping it before rethrowing, then the completion of that execution of
+ * the task &lt;i&gt;happens-before&lt;/i&gt; the execution method propagating that throwable.
+ * &lt;li&gt;If an execution method throws {@code InterruptedException}, {@code TimeoutException}, or
+ * {@code RejectedExecutionException} (unless propagating it from an execution of the given task),
+ * the given task was not and never will be executed.
+ * &lt;li&gt;Even after an execution method returns or throws for any reason, the given guard may still be
+ * executed any number of additional times with no necessary ordering relative to the execution
+ * method returning or throwing.
+ * &lt;li&gt;If an execution method propagates an {@code Error}, the given task might or might not have
+ * been executed, and might still be executed in the future, but it is guaranteed to execute at most
+ * once.
+ * &lt;/ul&gt;
+ *
+ * &lt;h2&gt;Exception Propagation&lt;/h2&gt;
+ *
+ * &lt;p&gt;If a guard or task throws an {@linkplain RuntimeException exception} or {@linkplain Error
+ * error} while executing in the same thread that submitted it for execution, that same exception or
+ * error will be propagated as-is from the execution method.
+ *
+ * &lt;p&gt;If a guard or task throws an {@linkplain RuntimeException exception} while executing in any
+ * thread &lt;i&gt;other&lt;/i&gt; than the one that submitted it for execution, that exception will be wrapped
+ * in a new {@link CancellationException} and rethrown from the submitting thread's execution
+ * method, but the executing thread's execution method will otherwise continue executing other
+ * guards and tasks normally.
+ *
+ * &lt;p&gt;If a guard or task throws an {@linkplain Error error} while executing in any thread other than
+ * the one that submitted it for execution, that error will be wrapped in a new {@link
+ * CancellationException} and rethrown from the submitting thread's execution method, &lt;b&gt;and&lt;/b&gt; the
+ * original error will be propagated as-is from the executing thread's own execution method.
+ *
+ * @author Justin T. Sampson
+ */
+<span class="pc bpc" id="L279" title="1 of 2 branches missed.">@SuppressWarnings(&quot;unused&quot;) // all execute methods are called reflectively by GeneratedGuardedExecutorTest</span>
+public final class GuardedExecutor extends AbstractOwnableSynchronizer
+    implements Executor, Serializable {
+
+  /**
+   * Constructs a new {@code GuardedExecutor}.
+   */
+<span class="fc" id="L286">  public GuardedExecutor() {}</span>
+
+  // ===============================================================================================
+  // Main Public API
+  // ===============================================================================================
+  //
+  // The execution methods that throw InterruptedException provide every combination of the
+  // following three choices:
+  //
+  // - Guard or no guard.
+  // - Timeout or no timeout.
+  // - Void or value-returning.
+  //
+  // The only uninterruptible methods are the two execute methods that don't support a timeout or a
+  // guard (but still support both void and value-returning versions) and the four &quot;immediate&quot;
+  // tryExecute and tryExecuteIf methods that have an implicit timeout of 0 but still offer the
+  // choices of guard or no guard and void or value-returning.
+  //
+  // These limited uninterruptible choices are somewhat opinionated, and consistent with other JDK
+  // concurrency utilities, because we really want to encourage programmers to handle interrupts
+  // correctly in their code. The methods with an implicit timeout of 0 are uninterruptible simply
+  // because they never block. The plain execute methods are uninterruptible because they have to be
+  // (one is inherited from Executor) but also because if the programmer is willing to execute a
+  // task without a timeout then they must be expecting the executor
+  //
+  // The tryExecuteXXX methods all throw TimeoutException because the only alternative, returning a
+  // boolean value, would not work with the versions that return a value anyway, and therefore would
+  // be inconsistent and confusing for the void versions.
+  //
+  // The end result is 2^3 + 2^1 + 2^2 = 14 total execution methods.
+
+  /**
+   * Executes the task before returning.
+   *
+   * @param task the task to execute
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  @Override
+  public final void execute(Runnable task) {
+<span class="fc" id="L326">    doExecuteUninterruptibly(requireNonNull(task), null);</span>
+<span class="fc" id="L327">  }</span>
+
+  /**
+   * Executes the task before returning.
+   *
+   * @param task the task to execute
+   * @return the value supplied by the task
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public final &lt;V&gt; V execute(Supplier&lt;V&gt; task) {
+<span class="fc" id="L339">    return (V) doExecuteUninterruptibly(null, requireNonNull(task));</span>
+  }
+
+  /**
+   * Executes the task before returning unless the current thread is interrupted.
+   *
+   * @param task the task to execute
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  public final void executeInterruptibly(Runnable task) throws InterruptedException {
+<span class="fc" id="L351">    doExecuteInterruptibly(null, requireNonNull(task), null);</span>
+<span class="fc" id="L352">  }</span>
+
+  /**
+   * Executes the task before returning unless the current thread is interrupted.
+   *
+   * @param task the task to execute
+   * @return the value supplied by the task
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public final &lt;V&gt; V executeInterruptibly(Supplier&lt;V&gt; task) throws InterruptedException {
+<span class="fc" id="L365">    return (V) doExecuteInterruptibly(null, null, requireNonNull(task));</span>
+  }
+
+  /**
+   * Executes the task before returning, first waiting for the guard to be satisfied, unless the
+   * current thread is interrupted.
+   *
+   * @param guard the guard to evaluate
+   * @param task the task to execute
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard or task is null
+   */
+  public final void executeWhen(BooleanSupplier guard, Runnable task) throws InterruptedException {
+<span class="fc" id="L379">    doExecuteInterruptibly(requireNonNull(guard), requireNonNull(task), null);</span>
+<span class="fc" id="L380">  }</span>
+
+  /**
+   * Executes the task before returning, first waiting for the guard to be satisfied, unless the
+   * current thread is interrupted.
+   *
+   * @param guard the guard to evaluate
+   * @param task the task to execute
+   * @return the value supplied by the task
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard or task is null
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public final &lt;V&gt; V executeWhen(BooleanSupplier guard, Supplier&lt;V&gt; task)
+      throws InterruptedException {
+<span class="fc" id="L396">    return (V) doExecuteInterruptibly(requireNonNull(guard), null, requireNonNull(task));</span>
+  }
+
+  /**
+   * Executes the task before returning, if it is possible to do so immediately.
+   *
+   * @param task the task to execute
+   * @throws TimeoutException if executing the task would require blocking
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  public final void tryExecute(Runnable task) throws TimeoutException {
+<span class="fc" id="L408">    doExecuteImmediately(null, requireNonNull(task), null);</span>
+<span class="fc" id="L409">  }</span>
+
+  /**
+   * Executes the task before returning, if it is possible to do so immediately.
+   *
+   * @param task the task to execute
+   * @return the value supplied by the task
+   * @throws TimeoutException if executing the task would require blocking
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public final &lt;V&gt; V tryExecute(Supplier&lt;V&gt; task) throws TimeoutException {
+<span class="fc" id="L422">    return (V) doExecuteImmediately(null, null, requireNonNull(task));</span>
+  }
+
+  /**
+   * Executes the task before returning, if it is possible to do so immediately and the guard is
+   * satisfied.
+   *
+   * @param guard the guard to evaluate
+   * @param task the task to execute
+   * @throws TimeoutException if executing the task would require blocking
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard or task is null
+   */
+  public final void tryExecuteIf(BooleanSupplier guard, Runnable task) throws TimeoutException {
+<span class="fc" id="L436">    doExecuteImmediately(requireNonNull(guard), requireNonNull(task), null);</span>
+<span class="fc" id="L437">  }</span>
+
+  /**
+   * Executes the task before returning, if it is possible to do so immediately and the guard is
+   * satisfied.
+   *
+   * @param guard the guard to evaluate
+   * @param task the task to execute
+   * @return the value supplied by the task
+   * @throws TimeoutException if executing the task would require blocking
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard or task is null
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public final &lt;V&gt; V tryExecuteIf(BooleanSupplier guard, Supplier&lt;V&gt; task) throws TimeoutException {
+<span class="fc" id="L452">    return (V) doExecuteImmediately(requireNonNull(guard), null, requireNonNull(task));</span>
+  }
+
+  /**
+   * Executes the task before returning, blocking at most the given time or until the current thread
+   * is interrupted.
+   *
+   * @param time the maximum time to block
+   * @param unit the unit of the time parameter
+   * @param task the task to execute
+   * @throws TimeoutException if executing the task would require blocking longer than specified
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  public final void tryExecute(long time, TimeUnit unit, Runnable task)
+      throws TimeoutException, InterruptedException {
+<span class="fc" id="L469">    doExecuteWithTimeout(null, time, requireNonNull(unit), requireNonNull(task), null);</span>
+<span class="fc" id="L470">  }</span>
+
+  /**
+   * Executes the task before returning, blocking at most the given time or until the current thread
+   * is interrupted.
+   *
+   * @param time the maximum time to block
+   * @param unit the unit of the time parameter
+   * @param task the task to execute
+   * @return the value supplied by the task
+   * @throws TimeoutException if executing the task would require blocking longer than specified
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if task is null
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public final &lt;V&gt; V tryExecute(long time, TimeUnit unit, Supplier&lt;V&gt; task)
+      throws TimeoutException, InterruptedException {
+<span class="fc" id="L488">    return (V) doExecuteWithTimeout(null, time, requireNonNull(unit), null, requireNonNull(task));</span>
+  }
+
+  /**
+   * Executes the task before returning, first waiting for the guard to be satisfied, blocking at
+   * most the given time or until the current thread is interrupted.
+   *
+   * @param guard the guard to evaluate
+   * @param time the maximum time to block
+   * @param unit the unit of the time parameter
+   * @param task the task to execute
+   * @throws TimeoutException if executing the task would require blocking longer than specified
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard or task is null
+   */
+  public final void tryExecuteWhen(BooleanSupplier guard, long time, TimeUnit unit, Runnable task)
+      throws TimeoutException, InterruptedException {
+<span class="fc" id="L506">    doExecuteWithTimeout(</span>
+<span class="fc" id="L507">        requireNonNull(guard), time, requireNonNull(unit), requireNonNull(task), null);</span>
+<span class="fc" id="L508">  }</span>
+
+  /**
+   * Executes the task before returning, first waiting for the guard to be satisfied, blocking at
+   * most the given time or until the current thread is interrupted.
+   *
+   * @param guard the guard to evaluate
+   * @param time the maximum time to block
+   * @param unit the unit of the time parameter
+   * @param task the task to execute
+   * @return the value supplied by the task
+   * @throws TimeoutException if executing the task would require blocking longer than specified
+   * @throws InterruptedException if this thread is interrupted before the task is executed
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard or task is null
+   */
+  @SuppressWarnings(&quot;unchecked&quot;)
+  public final &lt;V&gt; V tryExecuteWhen(BooleanSupplier guard, long time, TimeUnit unit,
+      Supplier&lt;V&gt; task) throws TimeoutException, InterruptedException {
+<span class="fc" id="L527">    return (V) doExecuteWithTimeout(</span>
+<span class="fc" id="L528">        requireNonNull(guard), time, requireNonNull(unit), null, requireNonNull(task));</span>
+  }
+
+  // ===============================================================================================
+  // Convenience API
+  // ===============================================================================================
+
+  /**
+   * Ensures that tasks with ill-behaved guards, that have become satisfied by events outside of
+   * task execution within this executor, do get executed. This method may execute guards and tasks
+   * of other threads, but never blocks. &lt;b&gt;It should not be necessary to call this method,&lt;/b&gt; but
+   * it is made available for specialized use cases.
+   *
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   */
+  public final void proceed() {
+    try {
+<span class="nc" id="L545">      tryExecute(() -&gt; {});</span>
+<span class="nc" id="L546">    } catch (TimeoutException e) {</span>
+      // Ignore, because this means that another thread is executing and will ensure progress.
+<span class="nc" id="L548">    }</span>
+<span class="nc" id="L549">  }</span>
+
+  /**
+   * Waits for the guard to become satisfied before proceeding, unless the current thread is
+   * interrupted. Cannot be called from within an executing task, but may be used to wait for a
+   * guard &lt;i&gt;without&lt;/i&gt; providing an associated task.
+   *
+   * @param guard the guard to evaluate
+   * @throws InterruptedException if this thread is interrupted before the guard becomes satisfied
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard is null
+   */
+  public final void proceedWhen(BooleanSupplier guard) throws InterruptedException {
+<span class="nc" id="L562">    executeWhen(guard, () -&gt; {});</span>
+<span class="nc" id="L563">  }</span>
+
+  /**
+   * Waits for the guard to become satisfied before proceeding, blocking at most the given time or
+   * until the current thread is interrupted. Cannot be called from within an executing task, but
+   * may be used to wait for a guard &lt;i&gt;without&lt;/i&gt; providing an associated task.
+   *
+   * @param guard the guard to evaluate
+   * @param time the maximum time to block
+   * @param unit the unit of the time parameter
+   * @throws TimeoutException if waiting for the guard would require blocking longer than specified
+   * @throws InterruptedException if this thread is interrupted before the guard becomes satisfied
+   * @throws RejectedExecutionException if this thread is already executing a task in this executor
+   * @throws NullPointerException if guard is null
+   */
+  public final void tryProceedWhen(BooleanSupplier guard, long time, TimeUnit unit)
+      throws TimeoutException, InterruptedException {
+<span class="nc" id="L580">    tryExecuteWhen(guard, time, unit, () -&gt; {});</span>
+<span class="nc" id="L581">  }</span>
+
+  // ===============================================================================================
+  // Public Monitoring API
+  // ===============================================================================================
+  //
+  // These monitoring methods are inspired directly by similar monitoring methods on ReentrantLock.
+  // The names are all the same except that the notions of being &quot;locked&quot; or of &quot;owning&quot; or
+  // &quot;holding&quot; the lock are replaced with &quot;executing&quot; in a thread. Methods for inspecting specific
+  // condition queues are left out as well since this class has a single shared queue.
+
+  /**
+   * Returns the thread currently executing guards and tasks in this executor, or {@code null} if
+   * there is none. The returned value is a best-effort approximation:
+   *
+   * &lt;ul&gt;
+   * &lt;li&gt;If there is no thread currently executing, this method will definitely return {@code null}.
+   * &lt;li&gt;If the current thread is currently executing, this method will definitely return it.
+   * &lt;li&gt;If some other thread is currently executing, this method will either return that thread or
+   * return {@code null}.
+   * &lt;/ul&gt;
+   *
+   * @return either the thread currently executing in this executor or {@code null}
+   */
+  public final Thread getExecutingThread() {
+<span class="nc bnc" id="L606" title="All 2 branches missed.">    return state == UNLOCKED ? null : getExclusiveOwnerThread();</span>
+  }
+
+  /**
+   * Returns the threads currently waiting for tasks to execute in this executor. The returned value
+   * is a best-effort approximation, as threads may start or stop waiting while this collection is
+   * being constructed. The returned collection is in no particular order.
+   *
+   * @return the collection of threads currently waiting
+   */
+  public final Collection&lt;Thread&gt; getQueuedThreads() {
+<span class="nc" id="L617">    List&lt;Thread&gt; threads = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L618" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="nc" id="L619">      final Thread thread = node.thread;</span>
+<span class="nc bnc" id="L620" title="All 4 branches missed.">      if (thread != null &amp;&amp; node.status == WAITING) {</span>
+<span class="nc" id="L621">        threads.add(thread);</span>
+      }
+    }
+<span class="nc" id="L624">    return threads;</span>
+  }
+
+  /**
+   * Returns the number of threads currently waiting for tasks to execute in this executor. The
+   * returned value is a best-effort approximation, as threads may start or stop waiting while this
+   * number is being calculated.
+   *
+   * @return the number of threads currently waiting
+   */
+  public final int getQueueLength() {
+<span class="nc" id="L635">    int length = 0;</span>
+<span class="nc bnc" id="L636" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="nc bnc" id="L637" title="All 2 branches missed.">      if (node.status == WAITING) {</span>
+<span class="nc" id="L638">        length++;</span>
+      }
+    }
+<span class="nc" id="L641">    return length;</span>
+  }
+
+  /**
+   * Determines whether the given thread is currently waiting for a task to execute in this
+   * executor. The returned value is a best-effort approximation, as the given thread may start or
+   * stop waiting while the result is being determined.
+   *
+   * @return {@code true} if the given thread is currently waiting
+   */
+  public final boolean hasQueuedThread(Thread thread) {
+<span class="nc" id="L652">    requireNonNull(thread);</span>
+<span class="nc bnc" id="L653" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="nc bnc" id="L654" title="All 4 branches missed.">      if (node.thread == thread &amp;&amp; node.status == WAITING) {</span>
+<span class="nc" id="L655">        return true;</span>
+      }
+    }
+<span class="nc" id="L658">    return false;</span>
+  }
+
+  /**
+   * Determines whether any threads are currently waiting for tasks to execute in this executor. The
+   * returned value is a best-effort approximation, as threads may start or stop waiting while the
+   * result is being determined.
+   *
+   * @return {@code true} if any threads are currently waiting
+   */
+  public final boolean hasQueuedThreads() {
+<span class="nc bnc" id="L669" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="nc bnc" id="L670" title="All 2 branches missed.">      if (node.status == WAITING) {</span>
+<span class="nc" id="L671">        return true;</span>
+      }
+    }
+<span class="nc" id="L674">    return false;</span>
+  }
+
+  /**
+   * Determines whether any thread is currently executing guards and tasks in this executor.
+   *
+   * @return {@code true} if any thread is currently executing
+   */
+  public final boolean isExecuting() {
+<span class="nc bnc" id="L683" title="All 2 branches missed.">    return state == LOCKED;</span>
+  }
+
+  /**
+   * Determines whether the current thread is currently executing guards and tasks in this executor.
+   *
+   * @return {@code true} if the current thread is currently executing
+   */
+  public final boolean isExecutingInCurrentThread() {
+<span class="fc bfc" id="L692" title="All 2 branches covered.">    return getExclusiveOwnerThread() == Thread.currentThread();</span>
+  }
+
+  /**
+   * Returns a string identifying this executor, as well as its execution state. The state, in
+   * brackets, includes either the string {@code &quot;Not executing&quot;} or the string {@code &quot;Executing
+   * in thread&quot;} followed by the {@linkplain Thread#getName name} of the owning thread.
+   *
+   * &lt;p&gt;The execution state is a best-effort approximation in the same manner as {@link
+   * #getExecutingThread()}.
+   *
+   * @return a string identifying this executor
+   */
+  @Override
+  public final String toString() {
+<span class="nc" id="L707">    final Thread owner = getExecutingThread();</span>
+<span class="nc bnc" id="L708" title="All 2 branches missed.">    return super.toString()</span>
+<span class="nc" id="L709">        + (owner == null ? &quot;[Not executing]&quot; : &quot;[Executing in thread &quot; + owner.getName() + &quot;]&quot;);</span>
+  }
+
+  // ===============================================================================================
+  // Low-Level Private Methods
+  // ===============================================================================================
+
+  /**
+   * Attempt to execute a task, optionally waiting for a guard to become satisfied and obeying a
+   * timeout. Interrupts are serviced by throwing InterruptedException.
+   *
+   * @param guard the guard to wait for, or null if task is unconditional
+   * @param time the maximum time to wait (zero or negative means never park)
+   * @param unit the unit of the time parameter
+   * @param runnable the task, if it is a {@code Runnable} (null if the task is a {@code Supplier})
+   * @param supplier the task, if it is a {@code Supplier} (null if the task is a {@code Runnable})
+   * @return the value returned by the task, if the task is a {@code Supplier} (null if the task is
+   *     a {@code Runnable})
+   * @throws TimeoutException the given timeout has elapsed, either because the lock was unavailable
+   *     or because the guard was unsatisfied
+   * @throws InterruptedException the current thread was interrupted, either before or during the
+   *     attempt to acquire the lock or wait for the guard
+   */
+  private Object doExecuteWithTimeout(
+      final BooleanSupplier guard,
+      final long time,
+      final TimeUnit unit,
+      final Runnable runnable,
+      final Supplier&lt;?&gt; supplier)
+      throws TimeoutException, InterruptedException {
+
+<span class="fc bfc" id="L740" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
+<span class="fc" id="L741">      throw new InterruptedException();</span>
+    }
+
+<span class="fc" id="L744">    final Thread currentThread = Thread.currentThread();</span>
+
+<span class="fc bfc" id="L746" title="All 2 branches covered.">    final Object initialResult =</span>
+<span class="fc" id="L747">        initialAcquireAndExecute(currentThread, guard, runnable, supplier, time &gt; 0L);</span>
+
+<span class="fc bfc" id="L749" title="All 2 branches covered.">    if (initialResult == NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L750">      throw new TimeoutException();</span>
+<span class="fc bfc" id="L751" title="All 4 branches covered.">    } else if (initialResult == null || initialResult.getClass() != Node.class) {</span>
+<span class="fc" id="L752">      return initialResult;</span>
+    }
+
+<span class="pc bpc" id="L755" title="2 of 4 branches missed.">    assert time &gt; 0L;</span>
+
+<span class="fc" id="L757">    final Node currentNode = (Node) initialResult;</span>
+
+<span class="fc" id="L759">    boolean startedTiming = false;</span>
+<span class="fc" id="L760">    long lastNanoTime = 0L; // only valid if startedTiming</span>
+<span class="fc" id="L761">    long remainingNanos = 0L; // only valid if startedTiming</span>
+
+    while (true) {
+<span class="fc" id="L764">      final Object subsequentResult = subsequentAcquireAndExecute(</span>
+          currentThread, currentNode, guard, runnable, supplier);
+
+<span class="fc bfc" id="L767" title="All 2 branches covered.">      if (subsequentResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L768">        return subsequentResult;</span>
+      }
+
+<span class="fc bfc" id="L771" title="All 2 branches covered.">      if (!startedTiming) {</span>
+<span class="fc" id="L772">        lastNanoTime = System.nanoTime();</span>
+<span class="fc" id="L773">        remainingNanos = unit.toNanos(time);</span>
+<span class="fc" id="L774">        startedTiming = true;</span>
+      } else {
+<span class="fc" id="L776">        long elapsedNanos = System.nanoTime() - lastNanoTime;</span>
+<span class="pc bpc" id="L777" title="1 of 2 branches missed.">        if (elapsedNanos &gt; 0L) {</span>
+<span class="fc" id="L778">          lastNanoTime += elapsedNanos;</span>
+<span class="fc" id="L779">          remainingNanos -= elapsedNanos;</span>
+        }
+      }
+
+<span class="fc bfc" id="L783" title="All 2 branches covered.">      if (remainingNanos &lt;= 0) {</span>
+<span class="fc" id="L784">        final Object lastChanceResult = consumeResult(currentNode, true);</span>
+
+<span class="pc bpc" id="L786" title="1 of 2 branches missed.">        if (lastChanceResult != NOT_EXECUTED_YET) {</span>
+<span class="nc" id="L787">          return lastChanceResult;</span>
+        } else {
+<span class="fc" id="L789">          throw new TimeoutException();</span>
+        }
+<span class="pc bpc" id="L791" title="1 of 2 branches missed.">      } else if (remainingNanos &gt; SPIN_FOR_TIMEOUT_THRESHOLD) {</span>
+<span class="fc" id="L792">        LockSupport.parkNanos(this, remainingNanos);</span>
+      }
+
+<span class="fc" id="L795">      final Object consumedResult = consumeResultOrInterrupt(currentThread, currentNode);</span>
+
+<span class="fc bfc" id="L797" title="All 2 branches covered.">      if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L798">        return consumedResult;</span>
+      }
+<span class="fc" id="L800">    }</span>
+  }
+
+  /**
+   * Attempt to execute a task, optionally checking for a guard to be satisfied, only if it can be
+   * done without parking. Interrupts are implicitly ignored by never parking.
+   *
+   * @param guard the guard to wait for, or null if task is unconditional
+   * @param runnable the task, if it is a {@code Runnable} (null if the task is a {@code Supplier})
+   * @param supplier the task, if it is a {@code Supplier} (null if the task is a {@code Runnable})
+   * @return the value returned by the task, if the task is a {@code Supplier} (null if the task is
+   *     a {@code Runnable})
+   * @throws TimeoutException the lock was unavailable or the guard was unsatisfied
+   */
+  private Object doExecuteImmediately(
+      final BooleanSupplier guard,
+      final Runnable runnable,
+      final Supplier&lt;?&gt; supplier)
+      throws TimeoutException {
+
+<span class="fc" id="L820">    final Object initialResult =</span>
+<span class="fc" id="L821">        initialAcquireAndExecute(Thread.currentThread(), guard, runnable, supplier, false);</span>
+
+<span class="fc bfc" id="L823" title="All 2 branches covered.">    if (initialResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L824">      return initialResult;</span>
+    } else {
+<span class="fc" id="L826">      throw new TimeoutException();</span>
+    }
+  }
+
+  /**
+   * Attempt to execute a task, optionally waiting for a guard to become satisfied. Interrupts are
+   * serviced by throwing InterruptedException.
+   *
+   * @param guard the guard to wait for, or null if task is unconditional
+   * @param runnable the task, if it is a {@code Runnable} (null if the task is a {@code Supplier})
+   * @param supplier the task, if it is a {@code Supplier} (null if the task is a {@code Runnable})
+   * @return the value returned by the task, if the task is a {@code Supplier} (null if the task is
+   *     a {@code Runnable})
+   * @throws InterruptedException the current thread was interrupted, either before or during the
+   *     attempt to acquire the lock or wait for the guard
+   */
+  private Object doExecuteInterruptibly(
+      final BooleanSupplier guard,
+      final Runnable runnable,
+      final Supplier&lt;?&gt; supplier)
+      throws InterruptedException {
+
+<span class="fc bfc" id="L848" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
+<span class="fc" id="L849">      throw new InterruptedException();</span>
+    }
+
+<span class="fc" id="L852">    final Thread currentThread = Thread.currentThread();</span>
+
+<span class="fc" id="L854">    final Object initialResult =</span>
+<span class="fc" id="L855">        initialAcquireAndExecute(currentThread, guard, runnable, supplier, true);</span>
+
+<span class="pc bpc" id="L857" title="2 of 4 branches missed.">    assert initialResult != NOT_EXECUTED_YET;</span>
+
+<span class="fc bfc" id="L859" title="All 4 branches covered.">    if (initialResult == null || initialResult.getClass() != Node.class) {</span>
+<span class="fc" id="L860">      return initialResult;</span>
+    }
+
+<span class="fc" id="L863">    final Node currentNode = (Node) initialResult;</span>
+
+    while (true) {
+<span class="fc" id="L866">      final Object subsequentResult = subsequentAcquireAndExecute(</span>
+          currentThread, currentNode, guard, runnable, supplier);
+
+<span class="fc bfc" id="L869" title="All 2 branches covered.">      if (subsequentResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L870">        return subsequentResult;</span>
+      }
+
+<span class="fc" id="L873">      LockSupport.park(this);</span>
+
+<span class="fc" id="L875">      final Object consumedResult = consumeResultOrInterrupt(currentThread, currentNode);</span>
+
+<span class="fc bfc" id="L877" title="All 2 branches covered.">      if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L878">        return consumedResult;</span>
+      }
+<span class="fc" id="L880">    }</span>
+  }
+
+  /**
+   * Execute a task. Interrupts are ignored by restoring the interrupt status on exit from the
+   * method.
+   *
+   * @param runnable the task, if it is a {@code Runnable} (null if the task is a {@code Supplier})
+   * @param supplier the task, if it is a {@code Supplier} (null if the task is a {@code Runnable})
+   * @return the value returned by the task, if the task is a {@code Supplier} (null if the task is
+   *     a {@code Runnable})
+   */
+  private Object doExecuteUninterruptibly(
+      final Runnable runnable,
+      final Supplier&lt;?&gt; supplier) {
+
+<span class="fc" id="L896">    final Thread currentThread = Thread.currentThread();</span>
+
+<span class="fc" id="L898">    final Object initialResult =</span>
+<span class="fc" id="L899">        initialAcquireAndExecute(currentThread, null, runnable, supplier, true);</span>
+
+<span class="pc bpc" id="L901" title="2 of 4 branches missed.">    assert initialResult != NOT_EXECUTED_YET;</span>
+
+<span class="fc bfc" id="L903" title="All 4 branches covered.">    if (initialResult == null || initialResult.getClass() != Node.class) {</span>
+<span class="fc" id="L904">      return initialResult;</span>
+    }
+
+<span class="fc" id="L907">    final Node currentNode = (Node) initialResult;</span>
+
+<span class="fc" id="L909">    boolean interrupted = false;</span>
+    try {
+      while (true) {
+<span class="fc" id="L912">        final Object subsequentResult = subsequentAcquireAndExecute(</span>
+            currentThread, currentNode, null, runnable, supplier);
+
+<span class="pc bpc" id="L915" title="1 of 2 branches missed.">        if (subsequentResult != NOT_EXECUTED_YET) {</span>
+<span class="nc" id="L916">          return subsequentResult;</span>
+        }
+
+<span class="pc bpc" id="L919" title="1 of 2 branches missed.">        if (Thread.interrupted()) {</span>
+<span class="nc" id="L920">          interrupted = true;</span>
+        }
+
+<span class="fc" id="L923">        LockSupport.park(this);</span>
+
+<span class="fc" id="L925">        final Object consumedResult = consumeResult(currentNode, false);</span>
+
+<span class="pc bpc" id="L927" title="1 of 2 branches missed.">        if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L928">          return consumedResult;</span>
+        }
+<span class="nc" id="L930">      }</span>
+    } finally {
+<span class="pc bpc" id="L932" title="1 of 2 branches missed.">      if (interrupted) {</span>
+<span class="nc" id="L933">        currentThread.interrupt();</span>
+      }
+    }
+  }
+
+  /**
+   * We want to attempt to acquire the lock right away, before adding a node to the queue. Since
+   * this thread will execute any tasks before it in the queue, there is no reason NOT to &quot;barge&quot;
+   * the lock like this. The only catch is that the thread won't have an &quot;official&quot; position in the
+   * queue until it DOES add a node for itself, so we have to be careful about the difference
+   * between the &quot;tentative previous node&quot; (the tail at the moment of acquiring the lock) and the
+   * &quot;actual previous node&quot; (the tail at the moment of adding a new node).
+   *
+   * @return either NOT_EXECUTED_YET (only if addToQueue is false), a new Node instance (only if
+   *         addToQueue is true), or the result of executing the task
+   */
+  private Object initialAcquireAndExecute(
+      final Thread currentThread,
+      final BooleanSupplier guard,
+      final Runnable runnable,
+      final Supplier&lt;?&gt; supplier,
+      final boolean addToQueue) {
+
+<span class="fc bfc" id="L956" title="All 2 branches covered.">    if (tryAcquireLock(currentThread)) {</span>
+<span class="fc" id="L957">      Node currentNode = null;</span>
+<span class="fc" id="L958">      boolean throwingWithoutExecuting = true;</span>
+      try {
+<span class="fc" id="L960">        final Node tentativePrev = this.tail;</span>
+<span class="fc" id="L961">        executeTasksUpTo(tentativePrev, null);</span>
+
+<span class="fc bfc" id="L963" title="All 4 branches covered.">        boolean satisfied = (guard == null || guard.getAsBoolean());</span>
+<span class="fc bfc" id="L964" title="All 2 branches covered.">        if (!satisfied) {</span>
+<span class="fc bfc" id="L965" title="All 2 branches covered.">          if (addToQueue) {</span>
+<span class="fc" id="L966">            currentNode = addNewNodeAtTail(currentThread, guard, runnable, supplier);</span>
+<span class="fc" id="L967">            final Node actualPrev = currentNode.prev;</span>
+<span class="pc bpc" id="L968" title="1 of 2 branches missed.">            if (actualPrev != tentativePrev) {</span>
+<span class="nc" id="L969">              executeTasksUpTo(actualPrev, tentativePrev);</span>
+<span class="nc" id="L970">              satisfied = guard.getAsBoolean();</span>
+            }
+<span class="fc" id="L972">          } else {</span>
+<span class="fc" id="L973">            return NOT_EXECUTED_YET;</span>
+          }
+        }
+
+<span class="fc bfc" id="L977" title="All 2 branches covered.">        if (satisfied) {</span>
+<span class="pc bpc" id="L978" title="1 of 2 branches missed.">          if (currentNode != null) {</span>
+<span class="nc" id="L979">            cancelBeforeExecuting(currentNode);</span>
+          }
+<span class="fc" id="L981">          throwingWithoutExecuting = false;</span>
+<span class="fc bfc" id="L982" title="All 2 branches covered.">          if (runnable != null) {</span>
+<span class="fc" id="L983">            runnable.run();</span>
+<span class="fc" id="L984">            return null;</span>
+          } else {
+<span class="fc" id="L986">            return supplier.get();</span>
+          }
+        } else {
+<span class="fc" id="L989">          throwingWithoutExecuting = false;</span>
+<span class="fc" id="L990">          return currentNode;</span>
+        }
+      } finally {
+<span class="pc bpc" id="L993" title="1 of 4 branches missed.">        if (throwingWithoutExecuting &amp;&amp; currentNode != null) {</span>
+<span class="nc" id="L994">          cancelBecauseThrowing(currentNode);</span>
+        }
+<span class="fc" id="L996">        releaseLock(currentNode);</span>
+      }
+<span class="pc bpc" id="L998" title="1 of 2 branches missed.">    } else if (getExclusiveOwnerThread() == currentThread) {</span>
+<span class="nc" id="L999">      throw new RejectedExecutionException();</span>
+<span class="fc bfc" id="L1000" title="All 2 branches covered.">    } else if (addToQueue) {</span>
+<span class="fc" id="L1001">      return addNewNodeAtTail(currentThread, guard, runnable, supplier);</span>
+    } else {
+<span class="fc" id="L1003">      return NOT_EXECUTED_YET;</span>
+    }
+  }
+
+  /**
+   * Attempt to acquire the lock, and execute tasks from the queue in order, up to and including
+   * this thread's task, if their guards are satisfied.
+   *
+   * @return either NOT_EXECUTED_YET or the result of executing the task
+   */
+  private Object subsequentAcquireAndExecute(
+      final Thread currentThread,
+      final Node currentNode,
+      final BooleanSupplier guard,
+      final Runnable runnable,
+      final Supplier&lt;?&gt; supplier) {
+
+<span class="fc bfc" id="L1020" title="All 2 branches covered.">    if (tryAcquireLock(currentThread)) {</span>
+<span class="fc" id="L1021">      boolean throwingWithoutExecuting = true;</span>
+      try {
+<span class="fc" id="L1023">        final Object consumedResult = consumeResult(currentNode, false);</span>
+<span class="pc bpc" id="L1024" title="1 of 2 branches missed.">        if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="nc" id="L1025">          throwingWithoutExecuting = false;</span>
+<span class="nc" id="L1026">          return consumedResult;</span>
+        } else {
+<span class="fc" id="L1028">          executeTasksUpTo(currentNode.prev, null);</span>
+<span class="fc bfc" id="L1029" title="All 4 branches covered.">          if (guard == null || guard.getAsBoolean()) {</span>
+<span class="fc" id="L1030">            cancelBeforeExecuting(currentNode);</span>
+<span class="fc" id="L1031">            throwingWithoutExecuting = false;</span>
+<span class="fc bfc" id="L1032" title="All 2 branches covered.">            if (runnable != null) {</span>
+<span class="fc" id="L1033">              runnable.run();</span>
+<span class="fc" id="L1034">              return null;</span>
+            } else {
+<span class="fc" id="L1036">              return supplier.get();</span>
+            }
+          } else {
+<span class="fc" id="L1039">            throwingWithoutExecuting = false;</span>
+<span class="fc" id="L1040">            return NOT_EXECUTED_YET;</span>
+          }
+        }
+      } finally {
+<span class="pc bpc" id="L1044" title="1 of 2 branches missed.">        if (throwingWithoutExecuting) {</span>
+<span class="nc" id="L1045">          cancelBecauseThrowing(currentNode);</span>
+        }
+<span class="fc" id="L1047">        releaseLock(currentNode);</span>
+      }
+    } else {
+<span class="fc" id="L1050">      return NOT_EXECUTED_YET;</span>
+    }
+  }
+
+  private void executeTasksUpTo(Node last, Node priorLast) {
+<span class="fc bfc" id="L1055" title="All 2 branches covered.">    if (last != null) {</span>
+<span class="fc" id="L1056">      Node head = updateNextLinksUpTo(last);</span>
+<span class="fc" id="L1057">      executeTasksFromHead(head, priorLast);</span>
+<span class="fc" id="L1058">      cleanUpCompletedNodes(head, last);</span>
+    }
+<span class="fc" id="L1060">  }</span>
+
+  /**
+   * Traverse backward, updating 'next' links and identifying the head of the queue.
+   * The 'next' links form a linked list starting at the returned node and ending at
+   * the given node.
+   */
+  private Node updateNextLinksUpTo(Node last) {
+<span class="fc" id="L1068">    Node next = last;</span>
+<span class="pc bpc" id="L1069" title="1 of 2 branches missed.">    for (Node curr = last.prev; curr != null; next = curr, curr = curr.prev) {</span>
+<span class="nc" id="L1070">      curr.next = next;</span>
+    }
+<span class="fc" id="L1072">    last.next = null;</span>
+<span class="fc" id="L1073">    return next;</span>
+  }
+
+  /**
+   * Actually execute nodes in queue order, starting from head and following 'next' links.
+   */
+  private void executeTasksFromHead(final Node head, Node priorLast) {
+<span class="fc" id="L1080">    Node runningHead = head;</span>
+
+    START_OVER:
+    while (true) {
+      final Node startingPoint;
+<span class="pc bpc" id="L1085" title="1 of 2 branches missed.">      if (priorLast != null) {</span>
+<span class="nc" id="L1086">        startingPoint = priorLast.next;</span>
+<span class="nc" id="L1087">        priorLast = null;</span>
+      } else {
+<span class="fc" id="L1089">        startingPoint = runningHead;</span>
+      }
+<span class="fc" id="L1091">      boolean skipped = false;</span>
+      NEXT_NODE:
+<span class="fc bfc" id="L1093" title="All 2 branches covered.">      for (Node curr = startingPoint; curr != null; curr = curr.next) {</span>
+<span class="fc bfc" id="L1094" title="All 2 branches covered.">        if (curr.status == WAITING) {</span>
+          // The read of guard here is racy; it could see null if this node actually has no guard OR
+          // if it gets cancelled right now. However, all that happens in that case is that we
+          // accidentally set satisfied = true and then attempt to call beginExecuting(), which will
+          // fail if the node has actually been cancelled.
+<span class="fc" id="L1099">          final BooleanSupplier guard = curr.guard;</span>
+          boolean satisfied;
+          try {
+<span class="fc bfc" id="L1102" title="All 4 branches covered.">            satisfied = (guard == null || guard.getAsBoolean());</span>
+<span class="nc" id="L1103">          } catch (Throwable t) {</span>
+<span class="nc bnc" id="L1104" title="All 2 branches missed.">            if (beginExecuting(curr)) {</span>
+<span class="nc" id="L1105">              endExecuting(curr, null, t);</span>
+            }
+<span class="nc bnc" id="L1107" title="All 2 branches missed.">            if (t instanceof Error) {</span>
+<span class="nc" id="L1108">              throw t;</span>
+            } else {
+<span class="nc bnc" id="L1110" title="All 2 branches missed.">              if (curr == runningHead) {</span>
+<span class="nc" id="L1111">                runningHead = curr.next;</span>
+              }
+<span class="nc" id="L1113">              continue NEXT_NODE;</span>
+            }
+<span class="fc" id="L1115">          }</span>
+<span class="fc bfc" id="L1116" title="All 2 branches covered.">          if (!satisfied) {</span>
+<span class="fc" id="L1117">            skipped = true;</span>
+<span class="fc" id="L1118">            continue NEXT_NODE;</span>
+          }
+<span class="pc bpc" id="L1120" title="1 of 2 branches missed.">          if (curr == runningHead) {</span>
+<span class="fc" id="L1121">            runningHead = curr.next;</span>
+          }
+<span class="pc bpc" id="L1123" title="1 of 2 branches missed.">          if (beginExecuting(curr)) {</span>
+<span class="fc" id="L1124">            Object returned = null;</span>
+<span class="fc" id="L1125">            Throwable thrown = null;</span>
+            try {
+              // The read of taskOrResult in execute() may seem racy, but it is not. The only way
+              // another thread might modify it is by cancelling or executing the node, but we're
+              // already exclusively executing it in _this_ thread.
+<span class="fc" id="L1130">              returned = curr.execute();</span>
+<span class="nc" id="L1131">            } catch (Throwable t) {</span>
+<span class="nc" id="L1132">              thrown = t;</span>
+<span class="nc bnc" id="L1133" title="All 2 branches missed.">              if (t instanceof Error) {</span>
+<span class="nc" id="L1134">                throw t;</span>
+              }
+            } finally {
+<span class="fc" id="L1137">              endExecuting(curr, returned, thrown);</span>
+            }
+<span class="pc bpc" id="L1139" title="1 of 2 branches missed.">            if (skipped) {</span>
+              // At least one earlier guard was unsatisfied before, but may be satisfied now that
+              // this task has been run, so we have to go back and reevaluate it.
+<span class="nc" id="L1142">              continue START_OVER;</span>
+            }
+          }
+<span class="fc" id="L1145">        } else {</span>
+<span class="pc bpc" id="L1146" title="1 of 2 branches missed.">          if (curr == runningHead) {</span>
+<span class="fc" id="L1147">            runningHead = curr.next;</span>
+          }
+        }
+      }
+      // Either nothing was executed, or some prefix were executed and the remainder skipped.
+<span class="fc" id="L1152">      break START_OVER;</span>
+    }
+<span class="fc" id="L1154">  }</span>
+
+  /**
+   * Traverse forward from 'head', nulling 'next' and updating 'prev' to delete completed nodes.
+   * (This cleanup is not essential, so it does not have to be in a finally block.)
+   */
+  private void cleanUpCompletedNodes(final Node head, final Node last) {
+<span class="fc" id="L1161">    Node prev = null;</span>
+    Node next;
+<span class="pc bpc" id="L1163" title="1 of 2 branches missed.">    for (Node curr = head; curr != last; curr = next) {</span>
+<span class="nc" id="L1164">      next = curr.next;</span>
+<span class="nc" id="L1165">      curr.next = null;</span>
+
+<span class="nc bnc" id="L1167" title="All 2 branches missed.">      if (curr.status == WAITING) {</span>
+<span class="nc" id="L1168">        curr.prev = prev;</span>
+<span class="nc" id="L1169">        prev = curr;</span>
+      }
+    }
+<span class="fc" id="L1172">    last.prev = prev;</span>
+<span class="fc" id="L1173">  }</span>
+
+  /**
+   * Unpark the waiting thread closest to the tail of the queue, unless that thread is the current
+   * thread (which has already determined that there's no work for it to do at this time).
+   */
+  private void unparkAnotherThreadIfNecessary(final Node currentNode) {
+<span class="fc bfc" id="L1180" title="All 2 branches covered.">    if (state == LOCKED) {</span>
+      // Some thread (possibly the current one) is already holding the lock and will therefore be
+      // responsible for unparking some other thread when it releases the lock.
+<span class="fc" id="L1183">      return;</span>
+    }
+<span class="fc bfc" id="L1185" title="All 2 branches covered.">    for (Node node = this.tail; node != null; node = node.prev) {</span>
+<span class="pc bpc" id="L1186" title="1 of 3 branches missed.">      switch (node.status) {</span>
+        case WAITING:
+<span class="fc bfc" id="L1188" title="All 2 branches covered.">          if (node != currentNode) {</span>
+            // This read of node.thread is racy -- it might see null if the thread stops waiting
+            // right at this moment. However, LockSupport.unpark(null) is simply a no-op, so the
+            // call is safe. Returning is still correct because we ensure elsewhere that every
+            // transition out of the WAITING state is followed by unparking yet another thread if
+            // necessary.
+<span class="fc" id="L1194">            LockSupport.unpark(node.thread);</span>
+          }
+<span class="fc" id="L1196">          return;</span>
+        case EXECUTING:
+          // This node is executing in another thread, which will then be responsible for unparking
+          // some other thread when it releases the lock.
+<span class="nc" id="L1200">          return;</span>
+        default:
+          // This node has already completed so it should not be unparked anymore.
+          continue;
+      }
+    }
+<span class="fc" id="L1206">  }</span>
+
+  /**
+   * Construct a new Node (with the WAITING status) and add it to the end of the queue.
+   */
+  private Node addNewNodeAtTail(
+      final Thread thread,
+      final BooleanSupplier guard,
+      final Runnable runnable,
+      final Supplier&lt;?&gt; supplier) {
+
+    final Object task;
+<span class="fc bfc" id="L1218" title="All 2 branches covered.">    if (runnable != null) {</span>
+<span class="fc" id="L1219">      task = runnable;</span>
+<span class="pc bpc" id="L1220" title="1 of 2 branches missed.">    } else if (supplier instanceof Runnable) {</span>
+      // This check avoids incorrect behavior in Node.execute().
+<span class="nc" id="L1222">      throw new IllegalArgumentException(</span>
+          &quot;task is statically a Supplier but also dynamically a Runnable&quot;);
+    } else {
+<span class="fc" id="L1225">      task = supplier;</span>
+    }
+
+<span class="fc" id="L1228">    final Node node = new Node(thread, guard, task);</span>
+
+    while (true) {
+<span class="fc" id="L1231">      final Node oldTail = this.tail;</span>
+<span class="fc" id="L1232">      node.prev = oldTail;</span>
+<span class="pc bpc" id="L1233" title="1 of 2 branches missed.">      if (TAIL.compareAndSet(this, oldTail, node)) {</span>
+<span class="fc" id="L1234">        return node;</span>
+      }
+<span class="nc" id="L1236">    }</span>
+  }
+
+  /**
+   * Mark node as cancelled because this thread is about to execute its own task. Only called by the
+   * thread that owns the given node, and only while holding the lock.
+   */
+  private void cancelBeforeExecuting(Node currentNode) {
+<span class="fc" id="L1244">    currentNode.status = CANCELLED;</span>
+<span class="fc" id="L1245">    currentNode.complete(null);</span>
+<span class="fc" id="L1246">  }</span>
+
+  /**
+   * Mark node as cancelled because this thread is throwing. Only called by the thread that owns the
+   * given node, and only immediately before releasing the lock.
+   */
+  private void cancelBecauseThrowing(Node currentNode) {
+<span class="nc bnc" id="L1253" title="All 2 branches missed.">    if (currentNode.status == WAITING) {</span>
+<span class="nc" id="L1254">      currentNode.status = CANCELLED;</span>
+<span class="nc" id="L1255">      currentNode.complete(null);</span>
+    }
+<span class="nc" id="L1257">  }</span>
+
+  /**
+   * Attempt to mark node as cancelled because this thread doesn't want to wait any longer. Only
+   * called by the thread that owns the given node, and only while NOT holding the lock.
+   */
+  private boolean cancelWithoutExecuting(Node currentNode) {
+<span class="pc bpc" id="L1264" title="1 of 2 branches missed.">    if (currentNode.leaveWaitingStatus(CANCELLED)) {</span>
+<span class="fc" id="L1265">      unparkAnotherThreadIfNecessary(currentNode);</span>
+<span class="fc" id="L1266">      currentNode.complete(null);</span>
+<span class="fc" id="L1267">      return true;</span>
+    } else {
+<span class="nc" id="L1269">      return false;</span>
+    }
+  }
+
+  private boolean beginExecuting(Node node) {
+    // It's not necessary to unpark another thread when transitioning out of the WAITING state here
+    // because the current thread holds the lock and will unpark another thread when releasing it.
+<span class="fc" id="L1276">    return node.leaveWaitingStatus(EXECUTING);</span>
+  }
+
+  private void endExecuting(Node node, Object returned, Throwable thrown) {
+<span class="fc" id="L1280">    final Thread thread = node.thread;</span>
+<span class="pc bpc" id="L1281" title="1 of 2 branches missed.">    node.complete(thrown != null ? thrown : returned);</span>
+<span class="pc bpc" id="L1282" title="1 of 2 branches missed.">    node.status = (thrown != null ? THREW : RETURNED);</span>
+<span class="fc" id="L1283">    LockSupport.unpark(thread);</span>
+<span class="fc" id="L1284">  }</span>
+
+  /**
+   * Check for conditions that mean this thread shouldn't try to acquire the lock again -- this
+   * thread having been interrupted or its task having been executed by another thread.
+   */
+  private Object consumeResultOrInterrupt(final Thread currentThread, final Node currentNode)
+      throws InterruptedException {
+<span class="fc bfc" id="L1292" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
+<span class="fc" id="L1293">      final Object result = consumeResult(currentNode, true);</span>
+<span class="pc bpc" id="L1294" title="1 of 2 branches missed.">      if (result != NOT_EXECUTED_YET) {</span>
+<span class="nc" id="L1295">        currentThread.interrupt();</span>
+<span class="nc" id="L1296">        return result;</span>
+      } else {
+<span class="fc" id="L1298">        throw new InterruptedException();</span>
+      }
+    } else {
+<span class="fc" id="L1301">      return consumeResult(currentNode, false);</span>
+    }
+  }
+
+  private Object consumeResult(final Node currentNode, final boolean cancelIfNotExecuted) {
+<span class="fc" id="L1306">    boolean interrupted = false;</span>
+    try {
+      while (true) {
+<span class="fc" id="L1309">        final int status = currentNode.status;</span>
+<span class="pc bpc" id="L1310" title="3 of 5 branches missed.">        switch (status) {</span>
+          case EXECUTING:
+            // Wait for other thread to complete execution of this task. It's tempting to spin here,
+            // but spinning is problematic if this thread is higher-priority than the one that is
+            // executing its task.
+<span class="nc bnc" id="L1315" title="All 2 branches missed.">            if (Thread.interrupted()) {</span>
+<span class="nc" id="L1316">              interrupted = true;</span>
+            }
+<span class="nc" id="L1318">            LockSupport.park(this);</span>
+<span class="nc" id="L1319">            continue;</span>
+          case RETURNED:
+<span class="fc" id="L1321">            Object result = currentNode.taskOrResult;</span>
+<span class="fc" id="L1322">            currentNode.taskOrResult = null;</span>
+<span class="fc" id="L1323">            return result;</span>
+          case THREW:
+<span class="nc" id="L1325">            Throwable thrown = (Throwable) currentNode.taskOrResult;</span>
+<span class="nc" id="L1326">            currentNode.taskOrResult = null;</span>
+<span class="nc" id="L1327">            throw (CancellationException) new CancellationException(</span>
+<span class="nc" id="L1328">                    &quot;guard or task threw in another thread&quot;).initCause(thrown);</span>
+          case WAITING:
+<span class="pc bpc" id="L1330" title="1 of 4 branches missed.">            if (!cancelIfNotExecuted || cancelWithoutExecuting(currentNode)) {</span>
+<span class="fc" id="L1331">              return NOT_EXECUTED_YET;</span>
+            } else {
+              continue;
+            }
+          default:
+            // Can't have CANCELLED status at any point where this method is called.
+<span class="nc" id="L1337">            throw new AssertionError(&quot;impossible status &quot; + status);</span>
+        }
+      }
+    } finally {
+<span class="pc bpc" id="L1341" title="1 of 2 branches missed.">      if (interrupted) {</span>
+<span class="nc" id="L1342">        Thread.currentThread().interrupt();</span>
+      }
+    }
+  }
+
+  private boolean tryAcquireLock(Thread owner) {
+<span class="fc bfc" id="L1348" title="All 2 branches covered.">    if (STATE.compareAndSet(this, UNLOCKED, LOCKED)) {</span>
+<span class="fc" id="L1349">      setExclusiveOwnerThread(owner);</span>
+<span class="fc" id="L1350">      return true;</span>
+    } else {
+<span class="fc" id="L1352">      return false;</span>
+    }
+  }
+
+  private void releaseLock(Node currentNode) {
+<span class="fc" id="L1357">    setExclusiveOwnerThread(null);</span>
+<span class="fc" id="L1358">    state = UNLOCKED;</span>
+<span class="fc" id="L1359">    unparkAnotherThreadIfNecessary(currentNode);</span>
+<span class="fc" id="L1360">  }</span>
+
+  // ===============================================================================================
+  // Internal Data Structures
+  // ===============================================================================================
+
+  static {
+    // Reduce the risk of rare disastrous classloading in first call to
+    // LockSupport.park: https://bugs.openjdk.java.net/browse/JDK-8074773
+    // (borrowed from java.util.concurrent.locks.AbstractQueuedSynchronizer)
+    @SuppressWarnings(&quot;unused&quot;)
+<span class="fc" id="L1371">    Class&lt;?&gt; ensureLoaded = LockSupport.class;</span>
+  }
+
+  private static final long serialVersionUID = 0L;
+
+  // The number of nanoseconds for which it is faster to spin
+  // rather than to use timed park. A rough estimate suffices
+  // to improve responsiveness with very short timeouts.
+  // (borrowed from java.util.concurrent.locks.AbstractQueuedSynchronizer)
+  private static final long SPIN_FOR_TIMEOUT_THRESHOLD = 1000L;
+
+  // Special value returned from consumeResult() if task has not been executed yet:
+<span class="fc" id="L1383">  private static final Object NOT_EXECUTED_YET = new Object();</span>
+
+  // Possible values for state field:
+  private static final int UNLOCKED = 0;
+  private static final int LOCKED = 1;
+
+  // Possible values for Node.status field:
+  private static final int WAITING = 0;
+  private static final int CANCELLED = 1;
+  private static final int EXECUTING = 2;
+  private static final int RETURNED = 3;
+  private static final int THREW = 4;
+
+<span class="fc" id="L1396">  private static final AtomicIntegerFieldUpdater&lt;GuardedExecutor&gt; STATE =</span>
+<span class="fc" id="L1397">      AtomicIntegerFieldUpdater.newUpdater(GuardedExecutor.class, &quot;state&quot;);</span>
+<span class="fc" id="L1398">  private static final AtomicReferenceFieldUpdater&lt;GuardedExecutor, Node&gt; TAIL =</span>
+<span class="fc" id="L1399">      AtomicReferenceFieldUpdater.newUpdater(GuardedExecutor.class, Node.class, &quot;tail&quot;);</span>
+
+<span class="fc" id="L1401">  private transient volatile int state = 0;</span>
+<span class="fc" id="L1402">  private transient volatile Node tail = null;</span>
+
+  static final class Node {
+
+<span class="fc" id="L1406">    private static final AtomicIntegerFieldUpdater&lt;Node&gt; STATUS =</span>
+<span class="fc" id="L1407">        AtomicIntegerFieldUpdater.newUpdater(Node.class, &quot;status&quot;);</span>
+
+    volatile int status;
+    Node prev;
+    Node next;
+    Thread thread;
+    BooleanSupplier guard;
+    Object taskOrResult;
+
+<span class="fc" id="L1416">    Node(Thread thread, BooleanSupplier guard, Object task) {</span>
+<span class="fc" id="L1417">      this.thread = thread;</span>
+<span class="fc" id="L1418">      this.guard = guard;</span>
+<span class="fc" id="L1419">      this.taskOrResult = task;</span>
+<span class="fc" id="L1420">    }</span>
+
+    final Object execute() {
+<span class="fc" id="L1423">      final Object task = this.taskOrResult;</span>
+<span class="fc bfc" id="L1424" title="All 2 branches covered.">      if (task instanceof Runnable) {</span>
+<span class="fc" id="L1425">        ((Runnable) task).run();</span>
+<span class="fc" id="L1426">        return null;</span>
+      } else {
+<span class="fc" id="L1428">        return ((Supplier&lt;?&gt;) task).get();</span>
+      }
+    }
+
+    final void complete(Object result) {
+<span class="fc" id="L1433">      this.thread = null;</span>
+<span class="fc" id="L1434">      this.guard = null;</span>
+<span class="fc" id="L1435">      this.taskOrResult = result;</span>
+<span class="fc" id="L1436">    }</span>
+
+    final boolean leaveWaitingStatus(int newStatus) {
+<span class="fc" id="L1439">      return STATUS.compareAndSet(this, WAITING, newStatus);</span>
+    }
+
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.4.201905082037</span></div></body></html>
