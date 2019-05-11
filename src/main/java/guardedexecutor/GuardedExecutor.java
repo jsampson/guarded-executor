@@ -1053,9 +1053,9 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 
   private void executeTasksUpTo(Node last, Node priorLast) {
     if (last != null) {
-      Node head = updateNextLinksUpTo(last);
-      executeTasksFromHead(head, priorLast);
-      cleanUpCompletedNodes(head, last);
+      updateNextLinksUpTo(last);
+      executeTasksFromHead(priorLast);
+      cleanUpCompletedNodes(last);
     }
   }
 
@@ -1064,19 +1064,23 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * The 'next' links form a linked list starting at the returned node and ending at
    * the given node.
    */
-  private Node updateNextLinksUpTo(Node last) {
+  private void updateNextLinksUpTo(Node last) {
     Node next = last;
-    for (Node curr = last.prev; curr != null; next = curr, curr = curr.prev) {
+    for (Node curr = last.prev; curr != null && curr.next == null; next = curr, curr = curr.prev) {
       curr.next = next;
     }
     last.next = null;
-    return next;
+
+    if (head == null) {
+      assert next.prev == null;
+      head = next;
+    }
   }
 
   /**
    * Actually execute nodes in queue order, starting from head and following 'next' links.
    */
-  private void executeTasksFromHead(final Node head, Node priorLast) {
+  private void executeTasksFromHead(Node priorLast) {
     Node runningHead = head;
 
     START_OVER:
@@ -1157,19 +1161,32 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * Traverse forward from 'head', nulling 'next' and updating 'prev' to delete completed nodes.
    * (This cleanup is not essential, so it does not have to be in a finally block.)
    */
-  private void cleanUpCompletedNodes(final Node head, final Node last) {
+  private void cleanUpCompletedNodes(Node last) {
     Node prev = null;
     Node next;
     for (Node curr = head; curr != last; curr = next) {
       next = curr.next;
-      curr.next = null;
 
       if (curr.status == WAITING) {
         curr.prev = prev;
+        if (prev == null) {
+          head = curr;
+        } else {
+          prev.next = curr;
+        }
         prev = curr;
+      } else {
+        curr.next = null;
+        // Leave prev alone in case monitoring methods are traversing queue.
       }
     }
+
     last.prev = prev;
+    if (prev == null) {
+      head = last;
+    } else {
+      prev.next = last;
+    }
   }
 
   /**
@@ -1400,6 +1417,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 
   private transient volatile int state = 0;
   private transient volatile Node tail = null;
+  private transient Node head = null;
 
   static final class Node {
 
