@@ -288,31 +288,6 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   // ===============================================================================================
   // Main Public API
   // ===============================================================================================
-  //
-  // The execution methods that throw InterruptedException provide every combination of the
-  // following three choices:
-  //
-  // - Guard or no guard.
-  // - Timeout or no timeout.
-  // - Void or value-returning.
-  //
-  // The only uninterruptible methods are the two execute methods that don't support a timeout or a
-  // guard (but still support both void and value-returning versions) and the four "immediate"
-  // tryExecute and tryExecuteIf methods that have an implicit timeout of 0 but still offer the
-  // choices of guard or no guard and void or value-returning.
-  //
-  // These limited uninterruptible choices are somewhat opinionated, and consistent with other JDK
-  // concurrency utilities, because we really want to encourage programmers to handle interrupts
-  // correctly in their code. The methods with an implicit timeout of 0 are uninterruptible simply
-  // because they never block. The plain execute methods are uninterruptible because they have to be
-  // (one is inherited from Executor) but also because if the programmer is willing to execute a
-  // task without a timeout then they must be expecting the executor
-  //
-  // The tryExecuteXXX methods all throw TimeoutException because the only alternative, returning a
-  // boolean value, would not work with the versions that return a value anyway, and therefore would
-  // be inconsistent and confusing for the void versions.
-  //
-  // The end result is 2^3 + 2^1 + 2^2 = 14 total execution methods.
 
   /**
    * Executes the task before returning.
@@ -581,13 +556,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   }
 
   // ===============================================================================================
-  // Public Monitoring API
+  // Monitoring API
   // ===============================================================================================
-  //
-  // These monitoring methods are inspired directly by similar monitoring methods on ReentrantLock.
-  // The names are all the same except that the notions of being "locked" or of "owning" or
-  // "holding" the lock are replaced with "executing" in a thread. Methods for inspecting specific
-  // condition queues are left out as well since this class has a single shared queue.
 
   /**
    * Returns the thread currently executing guards and tasks in this executor, or {@code null} if
@@ -710,7 +680,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   }
 
   // ===============================================================================================
-  // Low-Level Private Methods
+  // Top-Level Private Methods
   // ===============================================================================================
 
   /**
@@ -935,6 +905,10 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     }
   }
 
+  // ===============================================================================================
+  // Lock Acquisition Methods
+  // ===============================================================================================
+
   /**
    * We want to attempt to acquire the lock right away, before adding a node to the queue. Since
    * this thread will execute any tasks before it in the queue, there is no reason NOT to "barge"
@@ -1050,6 +1024,10 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       return NOT_EXECUTED_YET;
     }
   }
+
+  // ===============================================================================================
+  // Inner Execution Methods
+  // ===============================================================================================
 
   private void executeTasksUpTo(Node last, Node priorLast) {
     if (last != null) {
@@ -1171,6 +1149,10 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     }
     last.prev = prev;
   }
+
+  // ===============================================================================================
+  // Private Helper Methods
+  // ===============================================================================================
 
   /**
    * Unpark the waiting thread closest to the tail of the queue, unless that thread is the current
