@@ -711,10 +711,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       throw new InterruptedException();
     }
 
-    final Thread currentThread = Thread.currentThread();
-
-    final Object initialResult =
-        initialAcquireAndExecute(currentThread, guard, runnable, supplier, time > 0L);
+    final Object initialResult = initialAcquireAndExecute(guard, runnable, supplier, time > 0L);
 
     if (initialResult == NOT_EXECUTED_YET) {
       throw new TimeoutException();
@@ -731,8 +728,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     long remainingNanos = 0L; // only valid if startedTiming
 
     while (true) {
-      final Object subsequentResult = subsequentAcquireAndExecute(
-          currentThread, currentNode, guard, runnable, supplier);
+      final Object subsequentResult =
+          subsequentAcquireAndExecute(currentNode, guard, runnable, supplier);
 
       if (subsequentResult != NOT_EXECUTED_YET) {
         return subsequentResult;
@@ -762,7 +759,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         LockSupport.parkNanos(this, remainingNanos);
       }
 
-      final Object consumedResult = consumeResultOrInterrupt(currentThread, currentNode);
+      final Object consumedResult = consumeResultOrInterrupt(currentNode);
 
       if (consumedResult != NOT_EXECUTED_YET) {
         return consumedResult;
@@ -787,8 +784,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Supplier<?> supplier)
       throws TimeoutException {
 
-    final Object initialResult =
-        initialAcquireAndExecute(Thread.currentThread(), guard, runnable, supplier, false);
+    final Object initialResult = initialAcquireAndExecute(guard, runnable, supplier, false);
 
     if (initialResult != NOT_EXECUTED_YET) {
       return initialResult;
@@ -819,10 +815,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       throw new InterruptedException();
     }
 
-    final Thread currentThread = Thread.currentThread();
-
-    final Object initialResult =
-        initialAcquireAndExecute(currentThread, guard, runnable, supplier, true);
+    final Object initialResult = initialAcquireAndExecute(guard, runnable, supplier, true);
 
     assert initialResult != NOT_EXECUTED_YET;
 
@@ -833,8 +826,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     final Node currentNode = (Node) initialResult;
 
     while (true) {
-      final Object subsequentResult = subsequentAcquireAndExecute(
-          currentThread, currentNode, guard, runnable, supplier);
+      final Object subsequentResult =
+          subsequentAcquireAndExecute(currentNode, guard, runnable, supplier);
 
       if (subsequentResult != NOT_EXECUTED_YET) {
         return subsequentResult;
@@ -842,7 +835,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 
       LockSupport.park(this);
 
-      final Object consumedResult = consumeResultOrInterrupt(currentThread, currentNode);
+      final Object consumedResult = consumeResultOrInterrupt(currentNode);
 
       if (consumedResult != NOT_EXECUTED_YET) {
         return consumedResult;
@@ -863,10 +856,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Runnable runnable,
       final Supplier<?> supplier) {
 
-    final Thread currentThread = Thread.currentThread();
-
-    final Object initialResult =
-        initialAcquireAndExecute(currentThread, null, runnable, supplier, true);
+    final Object initialResult = initialAcquireAndExecute(null, runnable, supplier, true);
 
     assert initialResult != NOT_EXECUTED_YET;
 
@@ -879,8 +869,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     boolean interrupted = false;
     try {
       while (true) {
-        final Object subsequentResult = subsequentAcquireAndExecute(
-            currentThread, currentNode, null, runnable, supplier);
+        final Object subsequentResult =
+            subsequentAcquireAndExecute(currentNode, null, runnable, supplier);
 
         if (subsequentResult != NOT_EXECUTED_YET) {
           return subsequentResult;
@@ -900,7 +890,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       }
     } finally {
       if (interrupted) {
-        currentThread.interrupt();
+        Thread.currentThread().interrupt();
       }
     }
   }
@@ -921,13 +911,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    *         addToQueue is true), or the result of executing the task
    */
   private Object initialAcquireAndExecute(
-      final Thread currentThread,
       final BooleanSupplier guard,
       final Runnable runnable,
       final Supplier<?> supplier,
       final boolean addToQueue) {
 
-    if (tryAcquireLock(currentThread)) {
+    if (tryAcquireLock()) {
       Node currentNode = null;
       boolean throwingWithoutExecuting = true;
       try {
@@ -937,7 +926,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         boolean satisfied = (guard == null || guard.getAsBoolean());
         if (!satisfied) {
           if (addToQueue) {
-            currentNode = addNewNodeAtTail(currentThread, guard, runnable, supplier);
+            currentNode = addNewNodeAtTail(guard, runnable, supplier);
             final Node actualPrev = currentNode.prev;
             if (actualPrev != tentativePrev) {
               executeTasksUpTo(actualPrev, tentativePrev);
@@ -969,10 +958,10 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         }
         releaseLock(currentNode);
       }
-    } else if (getExclusiveOwnerThread() == currentThread) {
+    } else if (getExclusiveOwnerThread() == Thread.currentThread()) {
       throw new RejectedExecutionException();
     } else if (addToQueue) {
-      return addNewNodeAtTail(currentThread, guard, runnable, supplier);
+      return addNewNodeAtTail(guard, runnable, supplier);
     } else {
       return NOT_EXECUTED_YET;
     }
@@ -985,13 +974,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return either NOT_EXECUTED_YET or the result of executing the task
    */
   private Object subsequentAcquireAndExecute(
-      final Thread currentThread,
       final Node currentNode,
       final BooleanSupplier guard,
       final Runnable runnable,
       final Supplier<?> supplier) {
 
-    if (tryAcquireLock(currentThread)) {
+    if (tryAcquireLock()) {
       boolean throwingWithoutExecuting = true;
       try {
         final Object consumedResult = consumeResult(currentNode, false);
@@ -1190,24 +1178,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   /**
    * Construct a new Node (with the WAITING status) and add it to the end of the queue.
    */
-  private Node addNewNodeAtTail(
-      final Thread thread,
-      final BooleanSupplier guard,
-      final Runnable runnable,
-      final Supplier<?> supplier) {
-
-    final Object task;
-    if (runnable != null) {
-      task = runnable;
-    } else if (supplier instanceof Runnable) {
-      // This check avoids incorrect behavior in Node.execute().
-      throw new IllegalArgumentException(
-          "task is statically a Supplier but also dynamically a Runnable");
-    } else {
-      task = supplier;
-    }
-
-    final Node node = new Node(thread, guard, task);
+  private Node addNewNodeAtTail(BooleanSupplier guard, Runnable runnable, Supplier<?> supplier) {
+    final Node node = new Node(guard, runnable, supplier);
 
     while (true) {
       final Node oldTail = this.tail;
@@ -1269,7 +1241,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * Check for conditions that mean this thread shouldn't try to acquire the lock again -- this
    * thread having been interrupted or its task having been executed by another thread.
    */
-  private Object consumeResultOrInterrupt(final Thread currentThread, final Node currentNode)
+  private Object consumeResultOrInterrupt(final Node currentNode)
       throws InterruptedException {
     if (Thread.interrupted()) {
       boolean throwingInterruptedException = false;
@@ -1333,9 +1305,9 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     }
   }
 
-  private boolean tryAcquireLock(Thread owner) {
+  private boolean tryAcquireLock() {
     if (STATE.compareAndSet(this, UNLOCKED, LOCKED)) {
-      setExclusiveOwnerThread(owner);
+      setExclusiveOwnerThread(Thread.currentThread());
       return true;
     } else {
       return false;
@@ -1402,10 +1374,19 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     BooleanSupplier guard;
     Object taskOrResult;
 
-    Node(Thread thread, BooleanSupplier guard, Object task) {
-      this.thread = thread;
+    Node(BooleanSupplier guard, Runnable runnable, Supplier<?> supplier) {
+      this.thread = Thread.currentThread();
       this.guard = guard;
-      this.taskOrResult = task;
+
+      if (runnable != null) {
+        this.taskOrResult = runnable;
+      } else if (supplier instanceof Runnable) {
+        // This check avoids incorrect behavior in Node.execute().
+        throw new IllegalArgumentException(
+            "task is statically a Supplier but also dynamically a Runnable");
+      } else {
+        this.taskOrResult = supplier;
+      }
     }
 
     final Object execute() {
