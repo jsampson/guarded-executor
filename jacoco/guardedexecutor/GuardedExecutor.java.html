@@ -288,31 +288,6 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   // ===============================================================================================
   // Main Public API
   // ===============================================================================================
-  //
-  // The execution methods that throw InterruptedException provide every combination of the
-  // following three choices:
-  //
-  // - Guard or no guard.
-  // - Timeout or no timeout.
-  // - Void or value-returning.
-  //
-  // The only uninterruptible methods are the two execute methods that don't support a timeout or a
-  // guard (but still support both void and value-returning versions) and the four &quot;immediate&quot;
-  // tryExecute and tryExecuteIf methods that have an implicit timeout of 0 but still offer the
-  // choices of guard or no guard and void or value-returning.
-  //
-  // These limited uninterruptible choices are somewhat opinionated, and consistent with other JDK
-  // concurrency utilities, because we really want to encourage programmers to handle interrupts
-  // correctly in their code. The methods with an implicit timeout of 0 are uninterruptible simply
-  // because they never block. The plain execute methods are uninterruptible because they have to be
-  // (one is inherited from Executor) but also because if the programmer is willing to execute a
-  // task without a timeout then they must be expecting the executor
-  //
-  // The tryExecuteXXX methods all throw TimeoutException because the only alternative, returning a
-  // boolean value, would not work with the versions that return a value anyway, and therefore would
-  // be inconsistent and confusing for the void versions.
-  //
-  // The end result is 2^3 + 2^1 + 2^2 = 14 total execution methods.
 
   /**
    * Executes the task before returning.
@@ -323,8 +298,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   @Override
   public final void execute(Runnable task) {
-<span class="fc" id="L326">    doExecuteUninterruptibly(requireNonNull(task), null);</span>
-<span class="fc" id="L327">  }</span>
+<span class="fc" id="L301">    doExecuteUninterruptibly(requireNonNull(task), null);</span>
+<span class="fc" id="L302">  }</span>
 
   /**
    * Executes the task before returning.
@@ -336,7 +311,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   @SuppressWarnings(&quot;unchecked&quot;)
   public final &lt;V&gt; V execute(Supplier&lt;V&gt; task) {
-<span class="fc" id="L339">    return (V) doExecuteUninterruptibly(null, requireNonNull(task));</span>
+<span class="fc" id="L314">    return (V) doExecuteUninterruptibly(null, requireNonNull(task));</span>
   }
 
   /**
@@ -348,8 +323,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @throws NullPointerException if task is null
    */
   public final void executeInterruptibly(Runnable task) throws InterruptedException {
-<span class="fc" id="L351">    doExecuteInterruptibly(null, requireNonNull(task), null);</span>
-<span class="fc" id="L352">  }</span>
+<span class="fc" id="L326">    doExecuteInterruptibly(null, requireNonNull(task), null);</span>
+<span class="fc" id="L327">  }</span>
 
   /**
    * Executes the task before returning unless the current thread is interrupted.
@@ -362,7 +337,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   @SuppressWarnings(&quot;unchecked&quot;)
   public final &lt;V&gt; V executeInterruptibly(Supplier&lt;V&gt; task) throws InterruptedException {
-<span class="fc" id="L365">    return (V) doExecuteInterruptibly(null, null, requireNonNull(task));</span>
+<span class="fc" id="L340">    return (V) doExecuteInterruptibly(null, null, requireNonNull(task));</span>
   }
 
   /**
@@ -376,8 +351,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @throws NullPointerException if guard or task is null
    */
   public final void executeWhen(BooleanSupplier guard, Runnable task) throws InterruptedException {
-<span class="fc" id="L379">    doExecuteInterruptibly(requireNonNull(guard), requireNonNull(task), null);</span>
-<span class="fc" id="L380">  }</span>
+<span class="fc" id="L354">    doExecuteInterruptibly(requireNonNull(guard), requireNonNull(task), null);</span>
+<span class="fc" id="L355">  }</span>
 
   /**
    * Executes the task before returning, first waiting for the guard to be satisfied, unless the
@@ -393,7 +368,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   @SuppressWarnings(&quot;unchecked&quot;)
   public final &lt;V&gt; V executeWhen(BooleanSupplier guard, Supplier&lt;V&gt; task)
       throws InterruptedException {
-<span class="fc" id="L396">    return (V) doExecuteInterruptibly(requireNonNull(guard), null, requireNonNull(task));</span>
+<span class="fc" id="L371">    return (V) doExecuteInterruptibly(requireNonNull(guard), null, requireNonNull(task));</span>
   }
 
   /**
@@ -405,8 +380,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @throws NullPointerException if task is null
    */
   public final void tryExecute(Runnable task) throws TimeoutException {
-<span class="fc" id="L408">    doExecuteImmediately(null, requireNonNull(task), null);</span>
-<span class="fc" id="L409">  }</span>
+<span class="fc" id="L383">    doExecuteImmediately(null, requireNonNull(task), null);</span>
+<span class="fc" id="L384">  }</span>
 
   /**
    * Executes the task before returning, if it is possible to do so immediately.
@@ -419,7 +394,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   @SuppressWarnings(&quot;unchecked&quot;)
   public final &lt;V&gt; V tryExecute(Supplier&lt;V&gt; task) throws TimeoutException {
-<span class="fc" id="L422">    return (V) doExecuteImmediately(null, null, requireNonNull(task));</span>
+<span class="fc" id="L397">    return (V) doExecuteImmediately(null, null, requireNonNull(task));</span>
   }
 
   /**
@@ -433,8 +408,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @throws NullPointerException if guard or task is null
    */
   public final void tryExecuteIf(BooleanSupplier guard, Runnable task) throws TimeoutException {
-<span class="fc" id="L436">    doExecuteImmediately(requireNonNull(guard), requireNonNull(task), null);</span>
-<span class="fc" id="L437">  }</span>
+<span class="fc" id="L411">    doExecuteImmediately(requireNonNull(guard), requireNonNull(task), null);</span>
+<span class="fc" id="L412">  }</span>
 
   /**
    * Executes the task before returning, if it is possible to do so immediately and the guard is
@@ -449,7 +424,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   @SuppressWarnings(&quot;unchecked&quot;)
   public final &lt;V&gt; V tryExecuteIf(BooleanSupplier guard, Supplier&lt;V&gt; task) throws TimeoutException {
-<span class="fc" id="L452">    return (V) doExecuteImmediately(requireNonNull(guard), null, requireNonNull(task));</span>
+<span class="fc" id="L427">    return (V) doExecuteImmediately(requireNonNull(guard), null, requireNonNull(task));</span>
   }
 
   /**
@@ -466,8 +441,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   public final void tryExecute(long time, TimeUnit unit, Runnable task)
       throws TimeoutException, InterruptedException {
-<span class="fc" id="L469">    doExecuteWithTimeout(null, time, requireNonNull(unit), requireNonNull(task), null);</span>
-<span class="fc" id="L470">  }</span>
+<span class="fc" id="L444">    doExecuteWithTimeout(null, time, requireNonNull(unit), requireNonNull(task), null);</span>
+<span class="fc" id="L445">  }</span>
 
   /**
    * Executes the task before returning, blocking at most the given time or until the current thread
@@ -485,7 +460,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   @SuppressWarnings(&quot;unchecked&quot;)
   public final &lt;V&gt; V tryExecute(long time, TimeUnit unit, Supplier&lt;V&gt; task)
       throws TimeoutException, InterruptedException {
-<span class="fc" id="L488">    return (V) doExecuteWithTimeout(null, time, requireNonNull(unit), null, requireNonNull(task));</span>
+<span class="fc" id="L463">    return (V) doExecuteWithTimeout(null, time, requireNonNull(unit), null, requireNonNull(task));</span>
   }
 
   /**
@@ -503,9 +478,9 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   public final void tryExecuteWhen(BooleanSupplier guard, long time, TimeUnit unit, Runnable task)
       throws TimeoutException, InterruptedException {
-<span class="fc" id="L506">    doExecuteWithTimeout(</span>
-<span class="fc" id="L507">        requireNonNull(guard), time, requireNonNull(unit), requireNonNull(task), null);</span>
-<span class="fc" id="L508">  }</span>
+<span class="fc" id="L481">    doExecuteWithTimeout(</span>
+<span class="fc" id="L482">        requireNonNull(guard), time, requireNonNull(unit), requireNonNull(task), null);</span>
+<span class="fc" id="L483">  }</span>
 
   /**
    * Executes the task before returning, first waiting for the guard to be satisfied, blocking at
@@ -524,8 +499,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   @SuppressWarnings(&quot;unchecked&quot;)
   public final &lt;V&gt; V tryExecuteWhen(BooleanSupplier guard, long time, TimeUnit unit,
       Supplier&lt;V&gt; task) throws TimeoutException, InterruptedException {
-<span class="fc" id="L527">    return (V) doExecuteWithTimeout(</span>
-<span class="fc" id="L528">        requireNonNull(guard), time, requireNonNull(unit), null, requireNonNull(task));</span>
+<span class="fc" id="L502">    return (V) doExecuteWithTimeout(</span>
+<span class="fc" id="L503">        requireNonNull(guard), time, requireNonNull(unit), null, requireNonNull(task));</span>
   }
 
   // ===============================================================================================
@@ -542,11 +517,11 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   public final void proceed() {
     try {
-<span class="nc" id="L545">      tryExecute(() -&gt; {});</span>
-<span class="nc" id="L546">    } catch (TimeoutException e) {</span>
+<span class="nc" id="L520">      tryExecute(() -&gt; {});</span>
+<span class="nc" id="L521">    } catch (TimeoutException e) {</span>
       // Ignore, because this means that another thread is executing and will ensure progress.
-<span class="nc" id="L548">    }</span>
-<span class="nc" id="L549">  }</span>
+<span class="nc" id="L523">    }</span>
+<span class="nc" id="L524">  }</span>
 
   /**
    * Waits for the guard to become satisfied before proceeding, unless the current thread is
@@ -559,8 +534,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @throws NullPointerException if guard is null
    */
   public final void proceedWhen(BooleanSupplier guard) throws InterruptedException {
-<span class="nc" id="L562">    executeWhen(guard, () -&gt; {});</span>
-<span class="nc" id="L563">  }</span>
+<span class="nc" id="L537">    executeWhen(guard, () -&gt; {});</span>
+<span class="nc" id="L538">  }</span>
 
   /**
    * Waits for the guard to become satisfied before proceeding, blocking at most the given time or
@@ -577,17 +552,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   public final void tryProceedWhen(BooleanSupplier guard, long time, TimeUnit unit)
       throws TimeoutException, InterruptedException {
-<span class="nc" id="L580">    tryExecuteWhen(guard, time, unit, () -&gt; {});</span>
-<span class="nc" id="L581">  }</span>
+<span class="nc" id="L555">    tryExecuteWhen(guard, time, unit, () -&gt; {});</span>
+<span class="nc" id="L556">  }</span>
 
   // ===============================================================================================
-  // Public Monitoring API
+  // Monitoring API
   // ===============================================================================================
-  //
-  // These monitoring methods are inspired directly by similar monitoring methods on ReentrantLock.
-  // The names are all the same except that the notions of being &quot;locked&quot; or of &quot;owning&quot; or
-  // &quot;holding&quot; the lock are replaced with &quot;executing&quot; in a thread. Methods for inspecting specific
-  // condition queues are left out as well since this class has a single shared queue.
 
   /**
    * Returns the thread currently executing guards and tasks in this executor, or {@code null} if
@@ -603,7 +573,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return either the thread currently executing in this executor or {@code null}
    */
   public final Thread getExecutingThread() {
-<span class="nc bnc" id="L606" title="All 2 branches missed.">    return state == UNLOCKED ? null : getExclusiveOwnerThread();</span>
+<span class="nc bnc" id="L576" title="All 2 branches missed.">    return state == UNLOCKED ? null : getExclusiveOwnerThread();</span>
   }
 
   /**
@@ -614,14 +584,14 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return the collection of threads currently waiting
    */
   public final Collection&lt;Thread&gt; getQueuedThreads() {
-<span class="nc" id="L617">    List&lt;Thread&gt; threads = new ArrayList&lt;&gt;();</span>
-<span class="nc bnc" id="L618" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="nc" id="L619">      final Thread thread = node.thread;</span>
-<span class="nc bnc" id="L620" title="All 4 branches missed.">      if (thread != null &amp;&amp; node.status == WAITING) {</span>
-<span class="nc" id="L621">        threads.add(thread);</span>
+<span class="nc" id="L587">    List&lt;Thread&gt; threads = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L588" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="nc" id="L589">      final Thread thread = node.thread;</span>
+<span class="nc bnc" id="L590" title="All 4 branches missed.">      if (thread != null &amp;&amp; node.status == WAITING) {</span>
+<span class="nc" id="L591">        threads.add(thread);</span>
       }
     }
-<span class="nc" id="L624">    return threads;</span>
+<span class="nc" id="L594">    return threads;</span>
   }
 
   /**
@@ -632,13 +602,13 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return the number of threads currently waiting
    */
   public final int getQueueLength() {
-<span class="nc" id="L635">    int length = 0;</span>
-<span class="nc bnc" id="L636" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="nc bnc" id="L637" title="All 2 branches missed.">      if (node.status == WAITING) {</span>
-<span class="nc" id="L638">        length++;</span>
+<span class="fc" id="L605">    int length = 0;</span>
+<span class="fc bfc" id="L606" title="All 2 branches covered.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="pc bpc" id="L607" title="1 of 2 branches missed.">      if (node.status == WAITING) {</span>
+<span class="fc" id="L608">        length++;</span>
       }
     }
-<span class="nc" id="L641">    return length;</span>
+<span class="fc" id="L611">    return length;</span>
   }
 
   /**
@@ -649,13 +619,13 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return {@code true} if the given thread is currently waiting
    */
   public final boolean hasQueuedThread(Thread thread) {
-<span class="nc" id="L652">    requireNonNull(thread);</span>
-<span class="nc bnc" id="L653" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="nc bnc" id="L654" title="All 4 branches missed.">      if (node.thread == thread &amp;&amp; node.status == WAITING) {</span>
-<span class="nc" id="L655">        return true;</span>
+<span class="nc" id="L622">    requireNonNull(thread);</span>
+<span class="nc bnc" id="L623" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="nc bnc" id="L624" title="All 4 branches missed.">      if (node.thread == thread &amp;&amp; node.status == WAITING) {</span>
+<span class="nc" id="L625">        return true;</span>
       }
     }
-<span class="nc" id="L658">    return false;</span>
+<span class="nc" id="L628">    return false;</span>
   }
 
   /**
@@ -666,12 +636,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return {@code true} if any threads are currently waiting
    */
   public final boolean hasQueuedThreads() {
-<span class="nc bnc" id="L669" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="nc bnc" id="L670" title="All 2 branches missed.">      if (node.status == WAITING) {</span>
-<span class="nc" id="L671">        return true;</span>
+<span class="nc bnc" id="L639" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="nc bnc" id="L640" title="All 2 branches missed.">      if (node.status == WAITING) {</span>
+<span class="nc" id="L641">        return true;</span>
       }
     }
-<span class="nc" id="L674">    return false;</span>
+<span class="nc" id="L644">    return false;</span>
   }
 
   /**
@@ -680,7 +650,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return {@code true} if any thread is currently executing
    */
   public final boolean isExecuting() {
-<span class="nc bnc" id="L683" title="All 2 branches missed.">    return state == LOCKED;</span>
+<span class="nc bnc" id="L653" title="All 2 branches missed.">    return state == LOCKED;</span>
   }
 
   /**
@@ -689,7 +659,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return {@code true} if the current thread is currently executing
    */
   public final boolean isExecutingInCurrentThread() {
-<span class="fc bfc" id="L692" title="All 2 branches covered.">    return getExclusiveOwnerThread() == Thread.currentThread();</span>
+<span class="fc bfc" id="L662" title="All 2 branches covered.">    return getExclusiveOwnerThread() == Thread.currentThread();</span>
   }
 
   /**
@@ -704,13 +674,13 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   @Override
   public final String toString() {
-<span class="nc" id="L707">    final Thread owner = getExecutingThread();</span>
-<span class="nc bnc" id="L708" title="All 2 branches missed.">    return super.toString()</span>
-<span class="nc" id="L709">        + (owner == null ? &quot;[Not executing]&quot; : &quot;[Executing in thread &quot; + owner.getName() + &quot;]&quot;);</span>
+<span class="nc" id="L677">    final Thread owner = getExecutingThread();</span>
+<span class="nc bnc" id="L678" title="All 2 branches missed.">    return super.toString()</span>
+<span class="nc" id="L679">        + (owner == null ? &quot;[Not executing]&quot; : &quot;[Executing in thread &quot; + owner.getName() + &quot;]&quot;);</span>
   }
 
   // ===============================================================================================
-  // Low-Level Private Methods
+  // Top-Level Private Methods
   // ===============================================================================================
 
   /**
@@ -737,67 +707,64 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Supplier&lt;?&gt; supplier)
       throws TimeoutException, InterruptedException {
 
-<span class="fc bfc" id="L740" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
-<span class="fc" id="L741">      throw new InterruptedException();</span>
+<span class="fc bfc" id="L710" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
+<span class="fc" id="L711">      throw new InterruptedException();</span>
     }
 
-<span class="fc" id="L744">    final Thread currentThread = Thread.currentThread();</span>
+<span class="fc bfc" id="L714" title="All 2 branches covered.">    final Object initialResult = initialAcquireAndExecute(guard, runnable, supplier, time &gt; 0L);</span>
 
-<span class="fc bfc" id="L746" title="All 2 branches covered.">    final Object initialResult =</span>
-<span class="fc" id="L747">        initialAcquireAndExecute(currentThread, guard, runnable, supplier, time &gt; 0L);</span>
-
-<span class="fc bfc" id="L749" title="All 2 branches covered.">    if (initialResult == NOT_EXECUTED_YET) {</span>
-<span class="fc" id="L750">      throw new TimeoutException();</span>
-<span class="fc bfc" id="L751" title="All 4 branches covered.">    } else if (initialResult == null || initialResult.getClass() != Node.class) {</span>
-<span class="fc" id="L752">      return initialResult;</span>
+<span class="fc bfc" id="L716" title="All 2 branches covered.">    if (initialResult == NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L717">      throw new TimeoutException();</span>
+<span class="fc bfc" id="L718" title="All 4 branches covered.">    } else if (initialResult == null || initialResult.getClass() != Node.class) {</span>
+<span class="fc" id="L719">      return initialResult;</span>
     }
 
-<span class="pc bpc" id="L755" title="2 of 4 branches missed.">    assert time &gt; 0L;</span>
+<span class="pc bpc" id="L722" title="2 of 4 branches missed.">    assert time &gt; 0L;</span>
 
-<span class="fc" id="L757">    final Node currentNode = (Node) initialResult;</span>
+<span class="fc" id="L724">    final Node currentNode = (Node) initialResult;</span>
 
-<span class="fc" id="L759">    boolean startedTiming = false;</span>
-<span class="fc" id="L760">    long lastNanoTime = 0L; // only valid if startedTiming</span>
-<span class="fc" id="L761">    long remainingNanos = 0L; // only valid if startedTiming</span>
+<span class="fc" id="L726">    boolean startedTiming = false;</span>
+<span class="fc" id="L727">    long lastNanoTime = 0L; // only valid if startedTiming</span>
+<span class="fc" id="L728">    long remainingNanos = 0L; // only valid if startedTiming</span>
 
     while (true) {
-<span class="fc" id="L764">      final Object subsequentResult = subsequentAcquireAndExecute(</span>
-          currentThread, currentNode, guard, runnable, supplier);
+<span class="fc" id="L731">      final Object subsequentResult =</span>
+<span class="fc" id="L732">          subsequentAcquireAndExecute(currentNode, guard, runnable, supplier);</span>
 
-<span class="fc bfc" id="L767" title="All 2 branches covered.">      if (subsequentResult != NOT_EXECUTED_YET) {</span>
-<span class="fc" id="L768">        return subsequentResult;</span>
+<span class="fc bfc" id="L734" title="All 2 branches covered.">      if (subsequentResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L735">        return subsequentResult;</span>
       }
 
-<span class="fc bfc" id="L771" title="All 2 branches covered.">      if (!startedTiming) {</span>
-<span class="fc" id="L772">        lastNanoTime = System.nanoTime();</span>
-<span class="fc" id="L773">        remainingNanos = unit.toNanos(time);</span>
-<span class="fc" id="L774">        startedTiming = true;</span>
+<span class="fc bfc" id="L738" title="All 2 branches covered.">      if (!startedTiming) {</span>
+<span class="fc" id="L739">        lastNanoTime = System.nanoTime();</span>
+<span class="fc" id="L740">        remainingNanos = unit.toNanos(time);</span>
+<span class="fc" id="L741">        startedTiming = true;</span>
       } else {
-<span class="fc" id="L776">        long elapsedNanos = System.nanoTime() - lastNanoTime;</span>
-<span class="pc bpc" id="L777" title="1 of 2 branches missed.">        if (elapsedNanos &gt; 0L) {</span>
-<span class="fc" id="L778">          lastNanoTime += elapsedNanos;</span>
-<span class="fc" id="L779">          remainingNanos -= elapsedNanos;</span>
+<span class="fc" id="L743">        long elapsedNanos = System.nanoTime() - lastNanoTime;</span>
+<span class="pc bpc" id="L744" title="1 of 2 branches missed.">        if (elapsedNanos &gt; 0L) {</span>
+<span class="fc" id="L745">          lastNanoTime += elapsedNanos;</span>
+<span class="fc" id="L746">          remainingNanos -= elapsedNanos;</span>
         }
       }
 
-<span class="fc bfc" id="L783" title="All 2 branches covered.">      if (remainingNanos &lt;= 0) {</span>
-<span class="fc" id="L784">        final Object lastChanceResult = consumeResult(currentNode, true);</span>
+<span class="fc bfc" id="L750" title="All 2 branches covered.">      if (remainingNanos &lt;= 0) {</span>
+<span class="fc" id="L751">        final Object lastChanceResult = consumeResult(currentNode, true);</span>
 
-<span class="pc bpc" id="L786" title="1 of 2 branches missed.">        if (lastChanceResult != NOT_EXECUTED_YET) {</span>
-<span class="nc" id="L787">          return lastChanceResult;</span>
+<span class="pc bpc" id="L753" title="1 of 2 branches missed.">        if (lastChanceResult != NOT_EXECUTED_YET) {</span>
+<span class="nc" id="L754">          return lastChanceResult;</span>
         } else {
-<span class="fc" id="L789">          throw new TimeoutException();</span>
+<span class="fc" id="L756">          throw new TimeoutException();</span>
         }
-<span class="pc bpc" id="L791" title="1 of 2 branches missed.">      } else if (remainingNanos &gt; SPIN_FOR_TIMEOUT_THRESHOLD) {</span>
-<span class="fc" id="L792">        LockSupport.parkNanos(this, remainingNanos);</span>
+<span class="pc bpc" id="L758" title="1 of 2 branches missed.">      } else if (remainingNanos &gt; SPIN_FOR_TIMEOUT_THRESHOLD) {</span>
+<span class="fc" id="L759">        LockSupport.parkNanos(this, remainingNanos);</span>
       }
 
-<span class="fc" id="L795">      final Object consumedResult = consumeResultOrInterrupt(currentThread, currentNode);</span>
+<span class="fc" id="L762">      final Object consumedResult = consumeResultOrInterrupt(currentNode);</span>
 
-<span class="fc bfc" id="L797" title="All 2 branches covered.">      if (consumedResult != NOT_EXECUTED_YET) {</span>
-<span class="fc" id="L798">        return consumedResult;</span>
+<span class="fc bfc" id="L764" title="All 2 branches covered.">      if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L765">        return consumedResult;</span>
       }
-<span class="fc" id="L800">    }</span>
+<span class="fc" id="L767">    }</span>
   }
 
   /**
@@ -817,13 +784,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Supplier&lt;?&gt; supplier)
       throws TimeoutException {
 
-<span class="fc" id="L820">    final Object initialResult =</span>
-<span class="fc" id="L821">        initialAcquireAndExecute(Thread.currentThread(), guard, runnable, supplier, false);</span>
+<span class="fc" id="L787">    final Object initialResult = initialAcquireAndExecute(guard, runnable, supplier, false);</span>
 
-<span class="fc bfc" id="L823" title="All 2 branches covered.">    if (initialResult != NOT_EXECUTED_YET) {</span>
-<span class="fc" id="L824">      return initialResult;</span>
+<span class="fc bfc" id="L789" title="All 2 branches covered.">    if (initialResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L790">      return initialResult;</span>
     } else {
-<span class="fc" id="L826">      throw new TimeoutException();</span>
+<span class="fc" id="L792">      throw new TimeoutException();</span>
     }
   }
 
@@ -845,39 +811,36 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Supplier&lt;?&gt; supplier)
       throws InterruptedException {
 
-<span class="fc bfc" id="L848" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
-<span class="fc" id="L849">      throw new InterruptedException();</span>
+<span class="fc bfc" id="L814" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
+<span class="fc" id="L815">      throw new InterruptedException();</span>
     }
 
-<span class="fc" id="L852">    final Thread currentThread = Thread.currentThread();</span>
+<span class="fc" id="L818">    final Object initialResult = initialAcquireAndExecute(guard, runnable, supplier, true);</span>
 
-<span class="fc" id="L854">    final Object initialResult =</span>
-<span class="fc" id="L855">        initialAcquireAndExecute(currentThread, guard, runnable, supplier, true);</span>
+<span class="pc bpc" id="L820" title="2 of 4 branches missed.">    assert initialResult != NOT_EXECUTED_YET;</span>
 
-<span class="pc bpc" id="L857" title="2 of 4 branches missed.">    assert initialResult != NOT_EXECUTED_YET;</span>
-
-<span class="fc bfc" id="L859" title="All 4 branches covered.">    if (initialResult == null || initialResult.getClass() != Node.class) {</span>
-<span class="fc" id="L860">      return initialResult;</span>
+<span class="fc bfc" id="L822" title="All 4 branches covered.">    if (initialResult == null || initialResult.getClass() != Node.class) {</span>
+<span class="fc" id="L823">      return initialResult;</span>
     }
 
-<span class="fc" id="L863">    final Node currentNode = (Node) initialResult;</span>
+<span class="fc" id="L826">    final Node currentNode = (Node) initialResult;</span>
 
     while (true) {
-<span class="fc" id="L866">      final Object subsequentResult = subsequentAcquireAndExecute(</span>
-          currentThread, currentNode, guard, runnable, supplier);
+<span class="fc" id="L829">      final Object subsequentResult =</span>
+<span class="fc" id="L830">          subsequentAcquireAndExecute(currentNode, guard, runnable, supplier);</span>
 
-<span class="fc bfc" id="L869" title="All 2 branches covered.">      if (subsequentResult != NOT_EXECUTED_YET) {</span>
-<span class="fc" id="L870">        return subsequentResult;</span>
+<span class="fc bfc" id="L832" title="All 2 branches covered.">      if (subsequentResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L833">        return subsequentResult;</span>
       }
 
-<span class="fc" id="L873">      LockSupport.park(this);</span>
+<span class="fc" id="L836">      LockSupport.park(this);</span>
 
-<span class="fc" id="L875">      final Object consumedResult = consumeResultOrInterrupt(currentThread, currentNode);</span>
+<span class="fc" id="L838">      final Object consumedResult = consumeResultOrInterrupt(currentNode);</span>
 
-<span class="fc bfc" id="L877" title="All 2 branches covered.">      if (consumedResult != NOT_EXECUTED_YET) {</span>
-<span class="fc" id="L878">        return consumedResult;</span>
+<span class="fc bfc" id="L840" title="All 2 branches covered.">      if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L841">        return consumedResult;</span>
       }
-<span class="fc" id="L880">    }</span>
+<span class="fc" id="L843">    }</span>
   }
 
   /**
@@ -893,47 +856,48 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Runnable runnable,
       final Supplier&lt;?&gt; supplier) {
 
-<span class="fc" id="L896">    final Thread currentThread = Thread.currentThread();</span>
+<span class="fc" id="L859">    final Object initialResult = initialAcquireAndExecute(null, runnable, supplier, true);</span>
 
-<span class="fc" id="L898">    final Object initialResult =</span>
-<span class="fc" id="L899">        initialAcquireAndExecute(currentThread, null, runnable, supplier, true);</span>
+<span class="pc bpc" id="L861" title="2 of 4 branches missed.">    assert initialResult != NOT_EXECUTED_YET;</span>
 
-<span class="pc bpc" id="L901" title="2 of 4 branches missed.">    assert initialResult != NOT_EXECUTED_YET;</span>
-
-<span class="fc bfc" id="L903" title="All 4 branches covered.">    if (initialResult == null || initialResult.getClass() != Node.class) {</span>
-<span class="fc" id="L904">      return initialResult;</span>
+<span class="fc bfc" id="L863" title="All 4 branches covered.">    if (initialResult == null || initialResult.getClass() != Node.class) {</span>
+<span class="fc" id="L864">      return initialResult;</span>
     }
 
-<span class="fc" id="L907">    final Node currentNode = (Node) initialResult;</span>
+<span class="fc" id="L867">    final Node currentNode = (Node) initialResult;</span>
 
-<span class="fc" id="L909">    boolean interrupted = false;</span>
+<span class="fc" id="L869">    boolean interrupted = false;</span>
     try {
       while (true) {
-<span class="fc" id="L912">        final Object subsequentResult = subsequentAcquireAndExecute(</span>
-            currentThread, currentNode, null, runnable, supplier);
+<span class="fc" id="L872">        final Object subsequentResult =</span>
+<span class="fc" id="L873">            subsequentAcquireAndExecute(currentNode, null, runnable, supplier);</span>
 
-<span class="pc bpc" id="L915" title="1 of 2 branches missed.">        if (subsequentResult != NOT_EXECUTED_YET) {</span>
-<span class="nc" id="L916">          return subsequentResult;</span>
+<span class="fc bfc" id="L875" title="All 2 branches covered.">        if (subsequentResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L876">          return subsequentResult;</span>
         }
 
-<span class="pc bpc" id="L919" title="1 of 2 branches missed.">        if (Thread.interrupted()) {</span>
-<span class="nc" id="L920">          interrupted = true;</span>
+<span class="pc bpc" id="L879" title="1 of 2 branches missed.">        if (Thread.interrupted()) {</span>
+<span class="nc" id="L880">          interrupted = true;</span>
         }
 
-<span class="fc" id="L923">        LockSupport.park(this);</span>
+<span class="fc" id="L883">        LockSupport.park(this);</span>
 
-<span class="fc" id="L925">        final Object consumedResult = consumeResult(currentNode, false);</span>
+<span class="fc" id="L885">        final Object consumedResult = consumeResult(currentNode, false);</span>
 
-<span class="pc bpc" id="L927" title="1 of 2 branches missed.">        if (consumedResult != NOT_EXECUTED_YET) {</span>
-<span class="fc" id="L928">          return consumedResult;</span>
+<span class="fc bfc" id="L887" title="All 2 branches covered.">        if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="fc" id="L888">          return consumedResult;</span>
         }
-<span class="nc" id="L930">      }</span>
+<span class="fc" id="L890">      }</span>
     } finally {
-<span class="pc bpc" id="L932" title="1 of 2 branches missed.">      if (interrupted) {</span>
-<span class="nc" id="L933">        currentThread.interrupt();</span>
+<span class="pc bpc" id="L892" title="1 of 2 branches missed.">      if (interrupted) {</span>
+<span class="nc" id="L893">        Thread.currentThread().interrupt();</span>
       }
     }
   }
+
+  // ===============================================================================================
+  // Lock Acquisition Methods
+  // ===============================================================================================
 
   /**
    * We want to attempt to acquire the lock right away, before adding a node to the queue. Since
@@ -947,60 +911,59 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    *         addToQueue is true), or the result of executing the task
    */
   private Object initialAcquireAndExecute(
-      final Thread currentThread,
       final BooleanSupplier guard,
       final Runnable runnable,
       final Supplier&lt;?&gt; supplier,
       final boolean addToQueue) {
 
-<span class="fc bfc" id="L956" title="All 2 branches covered.">    if (tryAcquireLock(currentThread)) {</span>
-<span class="fc" id="L957">      Node currentNode = null;</span>
-<span class="fc" id="L958">      boolean throwingWithoutExecuting = true;</span>
+<span class="fc bfc" id="L919" title="All 2 branches covered.">    if (tryAcquireLock()) {</span>
+<span class="fc" id="L920">      Node currentNode = null;</span>
+<span class="fc" id="L921">      boolean throwingWithoutExecuting = true;</span>
       try {
-<span class="fc" id="L960">        final Node tentativePrev = this.tail;</span>
-<span class="fc" id="L961">        executeTasksUpTo(tentativePrev, null);</span>
+<span class="fc" id="L923">        final Node tentativePrev = this.tail;</span>
+<span class="fc" id="L924">        executeTasksUpTo(tentativePrev, null);</span>
 
-<span class="fc bfc" id="L963" title="All 4 branches covered.">        boolean satisfied = (guard == null || guard.getAsBoolean());</span>
-<span class="fc bfc" id="L964" title="All 2 branches covered.">        if (!satisfied) {</span>
-<span class="fc bfc" id="L965" title="All 2 branches covered.">          if (addToQueue) {</span>
-<span class="fc" id="L966">            currentNode = addNewNodeAtTail(currentThread, guard, runnable, supplier);</span>
-<span class="fc" id="L967">            final Node actualPrev = currentNode.prev;</span>
-<span class="pc bpc" id="L968" title="1 of 2 branches missed.">            if (actualPrev != tentativePrev) {</span>
-<span class="nc" id="L969">              executeTasksUpTo(actualPrev, tentativePrev);</span>
-<span class="nc" id="L970">              satisfied = guard.getAsBoolean();</span>
+<span class="fc bfc" id="L926" title="All 4 branches covered.">        boolean satisfied = (guard == null || guard.getAsBoolean());</span>
+<span class="fc bfc" id="L927" title="All 2 branches covered.">        if (!satisfied) {</span>
+<span class="fc bfc" id="L928" title="All 2 branches covered.">          if (addToQueue) {</span>
+<span class="fc" id="L929">            currentNode = addNewNodeAtTail(guard, runnable, supplier);</span>
+<span class="fc" id="L930">            final Node actualPrev = currentNode.prev;</span>
+<span class="pc bpc" id="L931" title="1 of 2 branches missed.">            if (actualPrev != tentativePrev) {</span>
+<span class="nc" id="L932">              executeTasksUpTo(actualPrev, tentativePrev);</span>
+<span class="nc" id="L933">              satisfied = guard.getAsBoolean();</span>
             }
-<span class="fc" id="L972">          } else {</span>
-<span class="fc" id="L973">            return NOT_EXECUTED_YET;</span>
+<span class="fc" id="L935">          } else {</span>
+<span class="fc" id="L936">            return NOT_EXECUTED_YET;</span>
           }
         }
 
-<span class="fc bfc" id="L977" title="All 2 branches covered.">        if (satisfied) {</span>
-<span class="pc bpc" id="L978" title="1 of 2 branches missed.">          if (currentNode != null) {</span>
-<span class="nc" id="L979">            cancelBeforeExecuting(currentNode);</span>
+<span class="fc bfc" id="L940" title="All 2 branches covered.">        if (satisfied) {</span>
+<span class="pc bpc" id="L941" title="1 of 2 branches missed.">          if (currentNode != null) {</span>
+<span class="nc" id="L942">            cancelBeforeExecuting(currentNode);</span>
           }
-<span class="fc" id="L981">          throwingWithoutExecuting = false;</span>
-<span class="fc bfc" id="L982" title="All 2 branches covered.">          if (runnable != null) {</span>
-<span class="fc" id="L983">            runnable.run();</span>
-<span class="fc" id="L984">            return null;</span>
+<span class="fc" id="L944">          throwingWithoutExecuting = false;</span>
+<span class="fc bfc" id="L945" title="All 2 branches covered.">          if (runnable != null) {</span>
+<span class="fc" id="L946">            runnable.run();</span>
+<span class="fc" id="L947">            return null;</span>
           } else {
-<span class="fc" id="L986">            return supplier.get();</span>
+<span class="fc" id="L949">            return supplier.get();</span>
           }
         } else {
-<span class="fc" id="L989">          throwingWithoutExecuting = false;</span>
-<span class="fc" id="L990">          return currentNode;</span>
+<span class="fc" id="L952">          throwingWithoutExecuting = false;</span>
+<span class="fc" id="L953">          return currentNode;</span>
         }
       } finally {
-<span class="pc bpc" id="L993" title="1 of 4 branches missed.">        if (throwingWithoutExecuting &amp;&amp; currentNode != null) {</span>
-<span class="nc" id="L994">          cancelBecauseThrowing(currentNode);</span>
+<span class="pc bpc" id="L956" title="1 of 4 branches missed.">        if (throwingWithoutExecuting &amp;&amp; currentNode != null) {</span>
+<span class="nc" id="L957">          cancelBecauseThrowing(currentNode);</span>
         }
-<span class="fc" id="L996">        releaseLock(currentNode);</span>
+<span class="fc" id="L959">        releaseLock(currentNode);</span>
       }
-<span class="pc bpc" id="L998" title="1 of 2 branches missed.">    } else if (getExclusiveOwnerThread() == currentThread) {</span>
-<span class="nc" id="L999">      throw new RejectedExecutionException();</span>
-<span class="fc bfc" id="L1000" title="All 2 branches covered.">    } else if (addToQueue) {</span>
-<span class="fc" id="L1001">      return addNewNodeAtTail(currentThread, guard, runnable, supplier);</span>
+<span class="pc bpc" id="L961" title="1 of 2 branches missed.">    } else if (getExclusiveOwnerThread() == Thread.currentThread()) {</span>
+<span class="nc" id="L962">      throw new RejectedExecutionException();</span>
+<span class="fc bfc" id="L963" title="All 2 branches covered.">    } else if (addToQueue) {</span>
+<span class="fc" id="L964">      return addNewNodeAtTail(guard, runnable, supplier);</span>
     } else {
-<span class="fc" id="L1003">      return NOT_EXECUTED_YET;</span>
+<span class="fc" id="L966">      return NOT_EXECUTED_YET;</span>
     }
   }
 
@@ -1011,53 +974,56 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return either NOT_EXECUTED_YET or the result of executing the task
    */
   private Object subsequentAcquireAndExecute(
-      final Thread currentThread,
       final Node currentNode,
       final BooleanSupplier guard,
       final Runnable runnable,
       final Supplier&lt;?&gt; supplier) {
 
-<span class="fc bfc" id="L1020" title="All 2 branches covered.">    if (tryAcquireLock(currentThread)) {</span>
-<span class="fc" id="L1021">      boolean throwingWithoutExecuting = true;</span>
+<span class="fc bfc" id="L982" title="All 2 branches covered.">    if (tryAcquireLock()) {</span>
+<span class="fc" id="L983">      boolean throwingWithoutExecuting = true;</span>
       try {
-<span class="fc" id="L1023">        final Object consumedResult = consumeResult(currentNode, false);</span>
-<span class="pc bpc" id="L1024" title="1 of 2 branches missed.">        if (consumedResult != NOT_EXECUTED_YET) {</span>
-<span class="nc" id="L1025">          throwingWithoutExecuting = false;</span>
-<span class="nc" id="L1026">          return consumedResult;</span>
+<span class="fc" id="L985">        final Object consumedResult = consumeResult(currentNode, false);</span>
+<span class="pc bpc" id="L986" title="1 of 2 branches missed.">        if (consumedResult != NOT_EXECUTED_YET) {</span>
+<span class="nc" id="L987">          throwingWithoutExecuting = false;</span>
+<span class="nc" id="L988">          return consumedResult;</span>
         } else {
-<span class="fc" id="L1028">          executeTasksUpTo(currentNode.prev, null);</span>
-<span class="fc bfc" id="L1029" title="All 4 branches covered.">          if (guard == null || guard.getAsBoolean()) {</span>
-<span class="fc" id="L1030">            cancelBeforeExecuting(currentNode);</span>
-<span class="fc" id="L1031">            throwingWithoutExecuting = false;</span>
-<span class="fc bfc" id="L1032" title="All 2 branches covered.">            if (runnable != null) {</span>
-<span class="fc" id="L1033">              runnable.run();</span>
-<span class="fc" id="L1034">              return null;</span>
+<span class="fc" id="L990">          executeTasksUpTo(currentNode.prev, null);</span>
+<span class="fc bfc" id="L991" title="All 4 branches covered.">          if (guard == null || guard.getAsBoolean()) {</span>
+<span class="fc" id="L992">            cancelBeforeExecuting(currentNode);</span>
+<span class="fc" id="L993">            throwingWithoutExecuting = false;</span>
+<span class="fc bfc" id="L994" title="All 2 branches covered.">            if (runnable != null) {</span>
+<span class="fc" id="L995">              runnable.run();</span>
+<span class="fc" id="L996">              return null;</span>
             } else {
-<span class="fc" id="L1036">              return supplier.get();</span>
+<span class="fc" id="L998">              return supplier.get();</span>
             }
           } else {
-<span class="fc" id="L1039">            throwingWithoutExecuting = false;</span>
-<span class="fc" id="L1040">            return NOT_EXECUTED_YET;</span>
+<span class="fc" id="L1001">            throwingWithoutExecuting = false;</span>
+<span class="fc" id="L1002">            return NOT_EXECUTED_YET;</span>
           }
         }
       } finally {
-<span class="pc bpc" id="L1044" title="1 of 2 branches missed.">        if (throwingWithoutExecuting) {</span>
-<span class="nc" id="L1045">          cancelBecauseThrowing(currentNode);</span>
+<span class="pc bpc" id="L1006" title="1 of 2 branches missed.">        if (throwingWithoutExecuting) {</span>
+<span class="nc" id="L1007">          cancelBecauseThrowing(currentNode);</span>
         }
-<span class="fc" id="L1047">        releaseLock(currentNode);</span>
+<span class="fc" id="L1009">        releaseLock(currentNode);</span>
       }
     } else {
-<span class="fc" id="L1050">      return NOT_EXECUTED_YET;</span>
+<span class="fc" id="L1012">      return NOT_EXECUTED_YET;</span>
     }
   }
 
+  // ===============================================================================================
+  // Inner Execution Methods
+  // ===============================================================================================
+
   private void executeTasksUpTo(Node last, Node priorLast) {
-<span class="fc bfc" id="L1055" title="All 2 branches covered.">    if (last != null) {</span>
-<span class="fc" id="L1056">      Node head = updateNextLinksUpTo(last);</span>
-<span class="fc" id="L1057">      executeTasksFromHead(head, priorLast);</span>
-<span class="fc" id="L1058">      cleanUpCompletedNodes(head, last);</span>
+<span class="fc bfc" id="L1021" title="All 2 branches covered.">    if (last != null) {</span>
+<span class="fc" id="L1022">      Node head = updateNextLinksUpTo(last);</span>
+<span class="fc" id="L1023">      executeTasksFromHead(head, priorLast);</span>
+<span class="fc" id="L1024">      cleanUpCompletedNodes(head, last);</span>
     }
-<span class="fc" id="L1060">  }</span>
+<span class="fc" id="L1026">  }</span>
 
   /**
    * Traverse backward, updating 'next' links and identifying the head of the queue.
@@ -1065,175 +1031,163 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * the given node.
    */
   private Node updateNextLinksUpTo(Node last) {
-<span class="fc" id="L1068">    Node next = last;</span>
-<span class="pc bpc" id="L1069" title="1 of 2 branches missed.">    for (Node curr = last.prev; curr != null; next = curr, curr = curr.prev) {</span>
-<span class="nc" id="L1070">      curr.next = next;</span>
+<span class="fc" id="L1034">    Node next = last;</span>
+<span class="pc bpc" id="L1035" title="1 of 2 branches missed.">    for (Node curr = last.prev; curr != null; next = curr, curr = curr.prev) {</span>
+<span class="nc" id="L1036">      curr.next = next;</span>
     }
-<span class="fc" id="L1072">    last.next = null;</span>
-<span class="fc" id="L1073">    return next;</span>
+<span class="fc" id="L1038">    last.next = null;</span>
+<span class="fc" id="L1039">    return next;</span>
   }
 
   /**
    * Actually execute nodes in queue order, starting from head and following 'next' links.
    */
   private void executeTasksFromHead(final Node head, Node priorLast) {
-<span class="fc" id="L1080">    Node runningHead = head;</span>
+<span class="fc" id="L1046">    Node runningHead = head;</span>
 
     START_OVER:
     while (true) {
       final Node startingPoint;
-<span class="pc bpc" id="L1085" title="1 of 2 branches missed.">      if (priorLast != null) {</span>
-<span class="nc" id="L1086">        startingPoint = priorLast.next;</span>
-<span class="nc" id="L1087">        priorLast = null;</span>
+<span class="pc bpc" id="L1051" title="1 of 2 branches missed.">      if (priorLast != null) {</span>
+<span class="nc" id="L1052">        startingPoint = priorLast.next;</span>
+<span class="nc" id="L1053">        priorLast = null;</span>
       } else {
-<span class="fc" id="L1089">        startingPoint = runningHead;</span>
+<span class="fc" id="L1055">        startingPoint = runningHead;</span>
       }
-<span class="fc" id="L1091">      boolean skipped = false;</span>
+<span class="fc" id="L1057">      boolean skipped = false;</span>
       NEXT_NODE:
-<span class="fc bfc" id="L1093" title="All 2 branches covered.">      for (Node curr = startingPoint; curr != null; curr = curr.next) {</span>
-<span class="fc bfc" id="L1094" title="All 2 branches covered.">        if (curr.status == WAITING) {</span>
+<span class="fc bfc" id="L1059" title="All 2 branches covered.">      for (Node curr = startingPoint; curr != null; curr = curr.next) {</span>
+<span class="fc bfc" id="L1060" title="All 2 branches covered.">        if (curr.status == WAITING) {</span>
           // The read of guard here is racy; it could see null if this node actually has no guard OR
           // if it gets cancelled right now. However, all that happens in that case is that we
           // accidentally set satisfied = true and then attempt to call beginExecuting(), which will
           // fail if the node has actually been cancelled.
-<span class="fc" id="L1099">          final BooleanSupplier guard = curr.guard;</span>
+<span class="fc" id="L1065">          final BooleanSupplier guard = curr.guard;</span>
           boolean satisfied;
           try {
-<span class="fc bfc" id="L1102" title="All 4 branches covered.">            satisfied = (guard == null || guard.getAsBoolean());</span>
-<span class="nc" id="L1103">          } catch (Throwable t) {</span>
-<span class="nc bnc" id="L1104" title="All 2 branches missed.">            if (beginExecuting(curr)) {</span>
-<span class="nc" id="L1105">              endExecuting(curr, null, t);</span>
+<span class="fc bfc" id="L1068" title="All 4 branches covered.">            satisfied = (guard == null || guard.getAsBoolean());</span>
+<span class="nc" id="L1069">          } catch (Throwable t) {</span>
+<span class="nc bnc" id="L1070" title="All 2 branches missed.">            if (beginExecuting(curr)) {</span>
+<span class="nc" id="L1071">              endExecuting(curr, null, t);</span>
             }
-<span class="nc bnc" id="L1107" title="All 2 branches missed.">            if (t instanceof Error) {</span>
-<span class="nc" id="L1108">              throw t;</span>
+<span class="nc bnc" id="L1073" title="All 2 branches missed.">            if (t instanceof Error) {</span>
+<span class="nc" id="L1074">              throw t;</span>
             } else {
-<span class="nc bnc" id="L1110" title="All 2 branches missed.">              if (curr == runningHead) {</span>
-<span class="nc" id="L1111">                runningHead = curr.next;</span>
+<span class="nc bnc" id="L1076" title="All 2 branches missed.">              if (curr == runningHead) {</span>
+<span class="nc" id="L1077">                runningHead = curr.next;</span>
               }
-<span class="nc" id="L1113">              continue NEXT_NODE;</span>
+<span class="nc" id="L1079">              continue NEXT_NODE;</span>
             }
-<span class="fc" id="L1115">          }</span>
-<span class="fc bfc" id="L1116" title="All 2 branches covered.">          if (!satisfied) {</span>
-<span class="fc" id="L1117">            skipped = true;</span>
-<span class="fc" id="L1118">            continue NEXT_NODE;</span>
+<span class="fc" id="L1081">          }</span>
+<span class="fc bfc" id="L1082" title="All 2 branches covered.">          if (!satisfied) {</span>
+<span class="fc" id="L1083">            skipped = true;</span>
+<span class="fc" id="L1084">            continue NEXT_NODE;</span>
           }
-<span class="pc bpc" id="L1120" title="1 of 2 branches missed.">          if (curr == runningHead) {</span>
-<span class="fc" id="L1121">            runningHead = curr.next;</span>
+<span class="pc bpc" id="L1086" title="1 of 2 branches missed.">          if (curr == runningHead) {</span>
+<span class="fc" id="L1087">            runningHead = curr.next;</span>
           }
-<span class="pc bpc" id="L1123" title="1 of 2 branches missed.">          if (beginExecuting(curr)) {</span>
-<span class="fc" id="L1124">            Object returned = null;</span>
-<span class="fc" id="L1125">            Throwable thrown = null;</span>
+<span class="pc bpc" id="L1089" title="1 of 2 branches missed.">          if (beginExecuting(curr)) {</span>
+<span class="fc" id="L1090">            Object returned = null;</span>
+<span class="fc" id="L1091">            Throwable thrown = null;</span>
             try {
               // The read of taskOrResult in execute() may seem racy, but it is not. The only way
               // another thread might modify it is by cancelling or executing the node, but we're
               // already exclusively executing it in _this_ thread.
-<span class="fc" id="L1130">              returned = curr.execute();</span>
-<span class="nc" id="L1131">            } catch (Throwable t) {</span>
-<span class="nc" id="L1132">              thrown = t;</span>
-<span class="nc bnc" id="L1133" title="All 2 branches missed.">              if (t instanceof Error) {</span>
-<span class="nc" id="L1134">                throw t;</span>
+<span class="fc" id="L1096">              returned = curr.execute();</span>
+<span class="fc" id="L1097">            } catch (Throwable t) {</span>
+<span class="fc" id="L1098">              thrown = t;</span>
+<span class="pc bpc" id="L1099" title="1 of 2 branches missed.">              if (t instanceof Error) {</span>
+<span class="nc" id="L1100">                throw t;</span>
               }
             } finally {
-<span class="fc" id="L1137">              endExecuting(curr, returned, thrown);</span>
+<span class="fc" id="L1103">              endExecuting(curr, returned, thrown);</span>
             }
-<span class="pc bpc" id="L1139" title="1 of 2 branches missed.">            if (skipped) {</span>
+<span class="pc bpc" id="L1105" title="1 of 2 branches missed.">            if (skipped) {</span>
               // At least one earlier guard was unsatisfied before, but may be satisfied now that
               // this task has been run, so we have to go back and reevaluate it.
-<span class="nc" id="L1142">              continue START_OVER;</span>
+<span class="nc" id="L1108">              continue START_OVER;</span>
             }
           }
-<span class="fc" id="L1145">        } else {</span>
-<span class="pc bpc" id="L1146" title="1 of 2 branches missed.">          if (curr == runningHead) {</span>
-<span class="fc" id="L1147">            runningHead = curr.next;</span>
+<span class="fc" id="L1111">        } else {</span>
+<span class="pc bpc" id="L1112" title="1 of 2 branches missed.">          if (curr == runningHead) {</span>
+<span class="fc" id="L1113">            runningHead = curr.next;</span>
           }
         }
       }
       // Either nothing was executed, or some prefix were executed and the remainder skipped.
-<span class="fc" id="L1152">      break START_OVER;</span>
+<span class="fc" id="L1118">      break START_OVER;</span>
     }
-<span class="fc" id="L1154">  }</span>
+<span class="fc" id="L1120">  }</span>
 
   /**
    * Traverse forward from 'head', nulling 'next' and updating 'prev' to delete completed nodes.
    * (This cleanup is not essential, so it does not have to be in a finally block.)
    */
   private void cleanUpCompletedNodes(final Node head, final Node last) {
-<span class="fc" id="L1161">    Node prev = null;</span>
+<span class="fc" id="L1127">    Node prev = null;</span>
     Node next;
-<span class="pc bpc" id="L1163" title="1 of 2 branches missed.">    for (Node curr = head; curr != last; curr = next) {</span>
-<span class="nc" id="L1164">      next = curr.next;</span>
-<span class="nc" id="L1165">      curr.next = null;</span>
+<span class="pc bpc" id="L1129" title="1 of 2 branches missed.">    for (Node curr = head; curr != last; curr = next) {</span>
+<span class="nc" id="L1130">      next = curr.next;</span>
+<span class="nc" id="L1131">      curr.next = null;</span>
 
-<span class="nc bnc" id="L1167" title="All 2 branches missed.">      if (curr.status == WAITING) {</span>
-<span class="nc" id="L1168">        curr.prev = prev;</span>
-<span class="nc" id="L1169">        prev = curr;</span>
+<span class="nc bnc" id="L1133" title="All 2 branches missed.">      if (curr.status == WAITING) {</span>
+<span class="nc" id="L1134">        curr.prev = prev;</span>
+<span class="nc" id="L1135">        prev = curr;</span>
       }
     }
-<span class="fc" id="L1172">    last.prev = prev;</span>
-<span class="fc" id="L1173">  }</span>
+<span class="fc" id="L1138">    last.prev = prev;</span>
+<span class="fc" id="L1139">  }</span>
+
+  // ===============================================================================================
+  // Private Helper Methods
+  // ===============================================================================================
 
   /**
    * Unpark the waiting thread closest to the tail of the queue, unless that thread is the current
    * thread (which has already determined that there's no work for it to do at this time).
    */
   private void unparkAnotherThreadIfNecessary(final Node currentNode) {
-<span class="fc bfc" id="L1180" title="All 2 branches covered.">    if (state == LOCKED) {</span>
+<span class="fc bfc" id="L1150" title="All 2 branches covered.">    if (state == LOCKED) {</span>
       // Some thread (possibly the current one) is already holding the lock and will therefore be
       // responsible for unparking some other thread when it releases the lock.
-<span class="fc" id="L1183">      return;</span>
+<span class="fc" id="L1153">      return;</span>
     }
-<span class="fc bfc" id="L1185" title="All 2 branches covered.">    for (Node node = this.tail; node != null; node = node.prev) {</span>
-<span class="pc bpc" id="L1186" title="1 of 3 branches missed.">      switch (node.status) {</span>
+<span class="fc bfc" id="L1155" title="All 2 branches covered.">    for (Node node = this.tail; node != null; node = node.prev) {</span>
+<span class="pc bpc" id="L1156" title="1 of 3 branches missed.">      switch (node.status) {</span>
         case WAITING:
-<span class="fc bfc" id="L1188" title="All 2 branches covered.">          if (node != currentNode) {</span>
+<span class="fc bfc" id="L1158" title="All 2 branches covered.">          if (node != currentNode) {</span>
             // This read of node.thread is racy -- it might see null if the thread stops waiting
             // right at this moment. However, LockSupport.unpark(null) is simply a no-op, so the
             // call is safe. Returning is still correct because we ensure elsewhere that every
             // transition out of the WAITING state is followed by unparking yet another thread if
             // necessary.
-<span class="fc" id="L1194">            LockSupport.unpark(node.thread);</span>
+<span class="fc" id="L1164">            LockSupport.unpark(node.thread);</span>
           }
-<span class="fc" id="L1196">          return;</span>
+<span class="fc" id="L1166">          return;</span>
         case EXECUTING:
           // This node is executing in another thread, which will then be responsible for unparking
           // some other thread when it releases the lock.
-<span class="nc" id="L1200">          return;</span>
+<span class="nc" id="L1170">          return;</span>
         default:
           // This node has already completed so it should not be unparked anymore.
           continue;
       }
     }
-<span class="fc" id="L1206">  }</span>
+<span class="fc" id="L1176">  }</span>
 
   /**
    * Construct a new Node (with the WAITING status) and add it to the end of the queue.
    */
-  private Node addNewNodeAtTail(
-      final Thread thread,
-      final BooleanSupplier guard,
-      final Runnable runnable,
-      final Supplier&lt;?&gt; supplier) {
-
-    final Object task;
-<span class="fc bfc" id="L1218" title="All 2 branches covered.">    if (runnable != null) {</span>
-<span class="fc" id="L1219">      task = runnable;</span>
-<span class="pc bpc" id="L1220" title="1 of 2 branches missed.">    } else if (supplier instanceof Runnable) {</span>
-      // This check avoids incorrect behavior in Node.execute().
-<span class="nc" id="L1222">      throw new IllegalArgumentException(</span>
-          &quot;task is statically a Supplier but also dynamically a Runnable&quot;);
-    } else {
-<span class="fc" id="L1225">      task = supplier;</span>
-    }
-
-<span class="fc" id="L1228">    final Node node = new Node(thread, guard, task);</span>
+  private Node addNewNodeAtTail(BooleanSupplier guard, Runnable runnable, Supplier&lt;?&gt; supplier) {
+<span class="fc" id="L1182">    final Node node = new Node(guard, runnable, supplier);</span>
 
     while (true) {
-<span class="fc" id="L1231">      final Node oldTail = this.tail;</span>
-<span class="fc" id="L1232">      node.prev = oldTail;</span>
-<span class="pc bpc" id="L1233" title="1 of 2 branches missed.">      if (TAIL.compareAndSet(this, oldTail, node)) {</span>
-<span class="fc" id="L1234">        return node;</span>
+<span class="fc" id="L1185">      final Node oldTail = this.tail;</span>
+<span class="fc" id="L1186">      node.prev = oldTail;</span>
+<span class="pc bpc" id="L1187" title="1 of 2 branches missed.">      if (TAIL.compareAndSet(this, oldTail, node)) {</span>
+<span class="fc" id="L1188">        return node;</span>
       }
-<span class="nc" id="L1236">    }</span>
+<span class="nc" id="L1190">    }</span>
   }
 
   /**
@@ -1241,123 +1195,130 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * thread that owns the given node, and only while holding the lock.
    */
   private void cancelBeforeExecuting(Node currentNode) {
-<span class="fc" id="L1244">    currentNode.status = CANCELLED;</span>
-<span class="fc" id="L1245">    currentNode.complete(null);</span>
-<span class="fc" id="L1246">  }</span>
+<span class="fc" id="L1198">    currentNode.status = CANCELLED;</span>
+<span class="fc" id="L1199">    currentNode.complete(null);</span>
+<span class="fc" id="L1200">  }</span>
 
   /**
    * Mark node as cancelled because this thread is throwing. Only called by the thread that owns the
    * given node, and only immediately before releasing the lock.
    */
   private void cancelBecauseThrowing(Node currentNode) {
-<span class="nc bnc" id="L1253" title="All 2 branches missed.">    if (currentNode.status == WAITING) {</span>
-<span class="nc" id="L1254">      currentNode.status = CANCELLED;</span>
-<span class="nc" id="L1255">      currentNode.complete(null);</span>
+<span class="nc bnc" id="L1207" title="All 2 branches missed.">    if (currentNode.status == WAITING) {</span>
+<span class="nc" id="L1208">      currentNode.status = CANCELLED;</span>
+<span class="nc" id="L1209">      currentNode.complete(null);</span>
     }
-<span class="nc" id="L1257">  }</span>
+<span class="nc" id="L1211">  }</span>
 
   /**
    * Attempt to mark node as cancelled because this thread doesn't want to wait any longer. Only
    * called by the thread that owns the given node, and only while NOT holding the lock.
    */
   private boolean cancelWithoutExecuting(Node currentNode) {
-<span class="pc bpc" id="L1264" title="1 of 2 branches missed.">    if (currentNode.leaveWaitingStatus(CANCELLED)) {</span>
-<span class="fc" id="L1265">      unparkAnotherThreadIfNecessary(currentNode);</span>
-<span class="fc" id="L1266">      currentNode.complete(null);</span>
-<span class="fc" id="L1267">      return true;</span>
+<span class="pc bpc" id="L1218" title="1 of 2 branches missed.">    if (currentNode.leaveWaitingStatus(CANCELLED)) {</span>
+<span class="fc" id="L1219">      unparkAnotherThreadIfNecessary(currentNode);</span>
+<span class="fc" id="L1220">      currentNode.complete(null);</span>
+<span class="fc" id="L1221">      return true;</span>
     } else {
-<span class="nc" id="L1269">      return false;</span>
+<span class="nc" id="L1223">      return false;</span>
     }
   }
 
   private boolean beginExecuting(Node node) {
     // It's not necessary to unpark another thread when transitioning out of the WAITING state here
     // because the current thread holds the lock and will unpark another thread when releasing it.
-<span class="fc" id="L1276">    return node.leaveWaitingStatus(EXECUTING);</span>
+<span class="fc" id="L1230">    return node.leaveWaitingStatus(EXECUTING);</span>
   }
 
   private void endExecuting(Node node, Object returned, Throwable thrown) {
-<span class="fc" id="L1280">    final Thread thread = node.thread;</span>
-<span class="pc bpc" id="L1281" title="1 of 2 branches missed.">    node.complete(thrown != null ? thrown : returned);</span>
-<span class="pc bpc" id="L1282" title="1 of 2 branches missed.">    node.status = (thrown != null ? THREW : RETURNED);</span>
-<span class="fc" id="L1283">    LockSupport.unpark(thread);</span>
-<span class="fc" id="L1284">  }</span>
+<span class="fc" id="L1234">    final Thread thread = node.thread;</span>
+<span class="fc bfc" id="L1235" title="All 2 branches covered.">    node.complete(thrown != null ? thrown : returned);</span>
+<span class="fc bfc" id="L1236" title="All 2 branches covered.">    node.status = (thrown != null ? THREW : RETURNED);</span>
+<span class="fc" id="L1237">    LockSupport.unpark(thread);</span>
+<span class="fc" id="L1238">  }</span>
 
   /**
    * Check for conditions that mean this thread shouldn't try to acquire the lock again -- this
    * thread having been interrupted or its task having been executed by another thread.
    */
-  private Object consumeResultOrInterrupt(final Thread currentThread, final Node currentNode)
+  private Object consumeResultOrInterrupt(final Node currentNode)
       throws InterruptedException {
-<span class="fc bfc" id="L1292" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
-<span class="fc" id="L1293">      final Object result = consumeResult(currentNode, true);</span>
-<span class="pc bpc" id="L1294" title="1 of 2 branches missed.">      if (result != NOT_EXECUTED_YET) {</span>
-<span class="nc" id="L1295">        currentThread.interrupt();</span>
-<span class="nc" id="L1296">        return result;</span>
-      } else {
-<span class="fc" id="L1298">        throw new InterruptedException();</span>
+<span class="fc bfc" id="L1246" title="All 2 branches covered.">    if (Thread.interrupted()) {</span>
+<span class="fc" id="L1247">      boolean throwingInterruptedException = false;</span>
+      try {
+<span class="fc" id="L1249">        Object result = consumeResult(currentNode, true);</span>
+<span class="pc bpc" id="L1250" title="1 of 2 branches missed.">        if (result != NOT_EXECUTED_YET) {</span>
+<span class="nc" id="L1251">          return result;</span>
+        } else {
+<span class="fc" id="L1253">          throwingInterruptedException = true;</span>
+<span class="fc" id="L1254">          throw new InterruptedException();</span>
+        }
+      } finally {
+<span class="fc bfc" id="L1257" title="All 2 branches covered.">        if (!throwingInterruptedException) {</span>
+<span class="fc" id="L1258">          Thread.currentThread().interrupt();</span>
+        }
       }
     } else {
-<span class="fc" id="L1301">      return consumeResult(currentNode, false);</span>
+<span class="fc" id="L1262">      return consumeResult(currentNode, false);</span>
     }
   }
 
   private Object consumeResult(final Node currentNode, final boolean cancelIfNotExecuted) {
-<span class="fc" id="L1306">    boolean interrupted = false;</span>
+<span class="fc" id="L1267">    boolean interrupted = false;</span>
     try {
       while (true) {
-<span class="fc" id="L1309">        final int status = currentNode.status;</span>
-<span class="pc bpc" id="L1310" title="3 of 5 branches missed.">        switch (status) {</span>
+<span class="fc" id="L1270">        final int status = currentNode.status;</span>
+<span class="pc bpc" id="L1271" title="1 of 5 branches missed.">        switch (status) {</span>
           case EXECUTING:
             // Wait for other thread to complete execution of this task. It's tempting to spin here,
             // but spinning is problematic if this thread is higher-priority than the one that is
             // executing its task.
-<span class="nc bnc" id="L1315" title="All 2 branches missed.">            if (Thread.interrupted()) {</span>
-<span class="nc" id="L1316">              interrupted = true;</span>
+<span class="pc bpc" id="L1276" title="1 of 2 branches missed.">            if (Thread.interrupted()) {</span>
+<span class="nc" id="L1277">              interrupted = true;</span>
             }
-<span class="nc" id="L1318">            LockSupport.park(this);</span>
-<span class="nc" id="L1319">            continue;</span>
+<span class="fc" id="L1279">            LockSupport.park(this);</span>
+<span class="fc" id="L1280">            continue;</span>
           case RETURNED:
-<span class="fc" id="L1321">            Object result = currentNode.taskOrResult;</span>
-<span class="fc" id="L1322">            currentNode.taskOrResult = null;</span>
-<span class="fc" id="L1323">            return result;</span>
+<span class="fc" id="L1282">            Object result = currentNode.taskOrResult;</span>
+<span class="fc" id="L1283">            currentNode.taskOrResult = null;</span>
+<span class="fc" id="L1284">            return result;</span>
           case THREW:
-<span class="nc" id="L1325">            Throwable thrown = (Throwable) currentNode.taskOrResult;</span>
-<span class="nc" id="L1326">            currentNode.taskOrResult = null;</span>
-<span class="nc" id="L1327">            throw (CancellationException) new CancellationException(</span>
-<span class="nc" id="L1328">                    &quot;guard or task threw in another thread&quot;).initCause(thrown);</span>
+<span class="fc" id="L1286">            Throwable thrown = (Throwable) currentNode.taskOrResult;</span>
+<span class="fc" id="L1287">            currentNode.taskOrResult = null;</span>
+<span class="fc" id="L1288">            throw (CancellationException) new CancellationException(</span>
+<span class="fc" id="L1289">                    &quot;guard or task threw in another thread&quot;).initCause(thrown);</span>
           case WAITING:
-<span class="pc bpc" id="L1330" title="1 of 4 branches missed.">            if (!cancelIfNotExecuted || cancelWithoutExecuting(currentNode)) {</span>
-<span class="fc" id="L1331">              return NOT_EXECUTED_YET;</span>
+<span class="pc bpc" id="L1291" title="1 of 4 branches missed.">            if (!cancelIfNotExecuted || cancelWithoutExecuting(currentNode)) {</span>
+<span class="fc" id="L1292">              return NOT_EXECUTED_YET;</span>
             } else {
               continue;
             }
           default:
             // Can't have CANCELLED status at any point where this method is called.
-<span class="nc" id="L1337">            throw new AssertionError(&quot;impossible status &quot; + status);</span>
+<span class="nc" id="L1298">            throw new AssertionError(&quot;impossible status &quot; + status);</span>
         }
       }
     } finally {
-<span class="pc bpc" id="L1341" title="1 of 2 branches missed.">      if (interrupted) {</span>
-<span class="nc" id="L1342">        Thread.currentThread().interrupt();</span>
+<span class="pc bpc" id="L1302" title="1 of 2 branches missed.">      if (interrupted) {</span>
+<span class="nc" id="L1303">        Thread.currentThread().interrupt();</span>
       }
     }
   }
 
-  private boolean tryAcquireLock(Thread owner) {
-<span class="fc bfc" id="L1348" title="All 2 branches covered.">    if (STATE.compareAndSet(this, UNLOCKED, LOCKED)) {</span>
-<span class="fc" id="L1349">      setExclusiveOwnerThread(owner);</span>
-<span class="fc" id="L1350">      return true;</span>
+  private boolean tryAcquireLock() {
+<span class="fc bfc" id="L1309" title="All 2 branches covered.">    if (STATE.compareAndSet(this, UNLOCKED, LOCKED)) {</span>
+<span class="fc" id="L1310">      setExclusiveOwnerThread(Thread.currentThread());</span>
+<span class="fc" id="L1311">      return true;</span>
     } else {
-<span class="fc" id="L1352">      return false;</span>
+<span class="fc" id="L1313">      return false;</span>
     }
   }
 
   private void releaseLock(Node currentNode) {
-<span class="fc" id="L1357">    setExclusiveOwnerThread(null);</span>
-<span class="fc" id="L1358">    state = UNLOCKED;</span>
-<span class="fc" id="L1359">    unparkAnotherThreadIfNecessary(currentNode);</span>
-<span class="fc" id="L1360">  }</span>
+<span class="fc" id="L1318">    setExclusiveOwnerThread(null);</span>
+<span class="fc" id="L1319">    state = UNLOCKED;</span>
+<span class="fc" id="L1320">    unparkAnotherThreadIfNecessary(currentNode);</span>
+<span class="fc" id="L1321">  }</span>
 
   // ===============================================================================================
   // Internal Data Structures
@@ -1368,7 +1329,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     // LockSupport.park: https://bugs.openjdk.java.net/browse/JDK-8074773
     // (borrowed from java.util.concurrent.locks.AbstractQueuedSynchronizer)
     @SuppressWarnings(&quot;unused&quot;)
-<span class="fc" id="L1371">    Class&lt;?&gt; ensureLoaded = LockSupport.class;</span>
+<span class="fc" id="L1332">    Class&lt;?&gt; ensureLoaded = LockSupport.class;</span>
   }
 
   private static final long serialVersionUID = 0L;
@@ -1380,7 +1341,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   private static final long SPIN_FOR_TIMEOUT_THRESHOLD = 1000L;
 
   // Special value returned from consumeResult() if task has not been executed yet:
-<span class="fc" id="L1383">  private static final Object NOT_EXECUTED_YET = new Object();</span>
+<span class="fc" id="L1344">  private static final Object NOT_EXECUTED_YET = new Object();</span>
 
   // Possible values for state field:
   private static final int UNLOCKED = 0;
@@ -1393,18 +1354,18 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   private static final int RETURNED = 3;
   private static final int THREW = 4;
 
-<span class="fc" id="L1396">  private static final AtomicIntegerFieldUpdater&lt;GuardedExecutor&gt; STATE =</span>
-<span class="fc" id="L1397">      AtomicIntegerFieldUpdater.newUpdater(GuardedExecutor.class, &quot;state&quot;);</span>
-<span class="fc" id="L1398">  private static final AtomicReferenceFieldUpdater&lt;GuardedExecutor, Node&gt; TAIL =</span>
-<span class="fc" id="L1399">      AtomicReferenceFieldUpdater.newUpdater(GuardedExecutor.class, Node.class, &quot;tail&quot;);</span>
+<span class="fc" id="L1357">  private static final AtomicIntegerFieldUpdater&lt;GuardedExecutor&gt; STATE =</span>
+<span class="fc" id="L1358">      AtomicIntegerFieldUpdater.newUpdater(GuardedExecutor.class, &quot;state&quot;);</span>
+<span class="fc" id="L1359">  private static final AtomicReferenceFieldUpdater&lt;GuardedExecutor, Node&gt; TAIL =</span>
+<span class="fc" id="L1360">      AtomicReferenceFieldUpdater.newUpdater(GuardedExecutor.class, Node.class, &quot;tail&quot;);</span>
 
-<span class="fc" id="L1401">  private transient volatile int state = 0;</span>
-<span class="fc" id="L1402">  private transient volatile Node tail = null;</span>
+<span class="fc" id="L1362">  private transient volatile int state = 0;</span>
+<span class="fc" id="L1363">  private transient volatile Node tail = null;</span>
 
   static final class Node {
 
-<span class="fc" id="L1406">    private static final AtomicIntegerFieldUpdater&lt;Node&gt; STATUS =</span>
-<span class="fc" id="L1407">        AtomicIntegerFieldUpdater.newUpdater(Node.class, &quot;status&quot;);</span>
+<span class="fc" id="L1367">    private static final AtomicIntegerFieldUpdater&lt;Node&gt; STATUS =</span>
+<span class="fc" id="L1368">        AtomicIntegerFieldUpdater.newUpdater(Node.class, &quot;status&quot;);</span>
 
     volatile int status;
     Node prev;
@@ -1413,30 +1374,39 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     BooleanSupplier guard;
     Object taskOrResult;
 
-<span class="fc" id="L1416">    Node(Thread thread, BooleanSupplier guard, Object task) {</span>
-<span class="fc" id="L1417">      this.thread = thread;</span>
-<span class="fc" id="L1418">      this.guard = guard;</span>
-<span class="fc" id="L1419">      this.taskOrResult = task;</span>
-<span class="fc" id="L1420">    }</span>
+<span class="fc" id="L1377">    Node(BooleanSupplier guard, Runnable runnable, Supplier&lt;?&gt; supplier) {</span>
+<span class="fc" id="L1378">      this.thread = Thread.currentThread();</span>
+<span class="fc" id="L1379">      this.guard = guard;</span>
+
+<span class="fc bfc" id="L1381" title="All 2 branches covered.">      if (runnable != null) {</span>
+<span class="fc" id="L1382">        this.taskOrResult = runnable;</span>
+<span class="pc bpc" id="L1383" title="1 of 2 branches missed.">      } else if (supplier instanceof Runnable) {</span>
+        // This check avoids incorrect behavior in Node.execute().
+<span class="nc" id="L1385">        throw new IllegalArgumentException(</span>
+            &quot;task is statically a Supplier but also dynamically a Runnable&quot;);
+      } else {
+<span class="fc" id="L1388">        this.taskOrResult = supplier;</span>
+      }
+<span class="fc" id="L1390">    }</span>
 
     final Object execute() {
-<span class="fc" id="L1423">      final Object task = this.taskOrResult;</span>
-<span class="fc bfc" id="L1424" title="All 2 branches covered.">      if (task instanceof Runnable) {</span>
-<span class="fc" id="L1425">        ((Runnable) task).run();</span>
-<span class="fc" id="L1426">        return null;</span>
+<span class="fc" id="L1393">      final Object task = this.taskOrResult;</span>
+<span class="fc bfc" id="L1394" title="All 2 branches covered.">      if (task instanceof Runnable) {</span>
+<span class="fc" id="L1395">        ((Runnable) task).run();</span>
+<span class="fc" id="L1396">        return null;</span>
       } else {
-<span class="fc" id="L1428">        return ((Supplier&lt;?&gt;) task).get();</span>
+<span class="fc" id="L1398">        return ((Supplier&lt;?&gt;) task).get();</span>
       }
     }
 
     final void complete(Object result) {
-<span class="fc" id="L1433">      this.thread = null;</span>
-<span class="fc" id="L1434">      this.guard = null;</span>
-<span class="fc" id="L1435">      this.taskOrResult = result;</span>
-<span class="fc" id="L1436">    }</span>
+<span class="fc" id="L1403">      this.thread = null;</span>
+<span class="fc" id="L1404">      this.guard = null;</span>
+<span class="fc" id="L1405">      this.taskOrResult = result;</span>
+<span class="fc" id="L1406">    }</span>
 
     final boolean leaveWaitingStatus(int newStatus) {
-<span class="fc" id="L1439">      return STATUS.compareAndSet(this, WAITING, newStatus);</span>
+<span class="fc" id="L1409">      return STATUS.compareAndSet(this, WAITING, newStatus);</span>
     }
 
   }
