@@ -142,7 +142,7 @@ public class GeneratedGuardedExecutorTest extends TestCase {
     SUCCESS,
 
     /**
-     * The method throw a TimeoutException.
+     * The method threw a TimeoutException.
      */
     TIMEOUT,
 
@@ -164,7 +164,8 @@ public class GeneratedGuardedExecutorTest extends TestCase {
   }
 
   private static boolean isExecuteMethod(Method method) {
-    return method.getName().startsWith("execute") || method.getName().startsWith("tryExecute");
+    List<Class<?>> parameterTypes = Arrays.asList(method.getParameterTypes());
+    return parameterTypes.contains(Runnable.class) || parameterTypes.contains(Supplier.class);
   }
 
   private static boolean isNonBlocking(Method method) {
@@ -201,8 +202,12 @@ public class GeneratedGuardedExecutorTest extends TestCase {
       int nameComparison = m1.getName().compareTo(m2.getName());
       if (nameComparison != 0) {
         return nameComparison;
+      } else if (!returnsValue(m1) && returnsValue(m2)) {
+        return -1;
+      } else if (returnsValue(m1) && !returnsValue(m2)) {
+        return +1;
       } else {
-        return Integer.compare(m1.getParameterTypes().length, m2.getParameterTypes().length);
+        return 0;
       }
     });
   }
@@ -212,7 +217,6 @@ public class GeneratedGuardedExecutorTest extends TestCase {
    */
   private static void validateMethod(Method method) {
     String desc = method.toString();
-    String name = method.getName();
 
     Class<?> expectedTaskType = returnsValue(method) ? Supplier.class : Runnable.class;
     Class<?>[] parameterTypes = method.getParameterTypes();
@@ -239,21 +243,27 @@ public class GeneratedGuardedExecutorTest extends TestCase {
         fail(desc);
     }
 
-    if (throwsTimeout(method) != name.startsWith("try")) {
-      fail("must start with 'try' if and only if throws TimeoutException: " + desc);
+    StringBuilder expectedName = new StringBuilder();
+
+    if (throwsTimeout(method)) {
+      expectedName.append("tryExecute");
+    } else {
+      expectedName.append("execute");
     }
 
-    if (isGuarded(method) != (name.contains("When") || name.contains("If"))) {
-      fail("must contain 'When' or 'If' if and only if takes BooleanSupplier: " + desc);
+    if (isGuarded(method)) {
+      if (throwsTimeout(method) && !isTimed(method)) {
+        expectedName.append("If");
+      } else {
+        expectedName.append("When");
+      }
     }
 
-    if (name.endsWith("Interruptible") && !throwsInterrupted(method)) {
-      fail("must not end with 'Interruptible' unless throws InterruptedException: " + desc);
+    if (!isGuarded(method) && !isTimed(method) && throwsInterrupted(method)) {
+      expectedName.append("Interruptibly");
     }
 
-    if (name.endsWith("Uninterruptible") && throwsInterrupted(method)) {
-      fail("must not end with 'Uninterruptible' if throws InterruptedException: " + desc);
-    }
+    assertEquals(desc, expectedName.toString(), method.getName());
   }
 
   /**
@@ -374,12 +384,14 @@ public class GeneratedGuardedExecutorTest extends TestCase {
 
   private static String nameFor(
       Method method, Scenario scenario, Timeout timeout, Outcome expectedOutcome) {
-    return String.format(Locale.ROOT,
-        "%s(%s)/%s->%s",
-        method.getName(),
-        (timeout == null) ? "untimed" : timeout,
-        scenario,
-        expectedOutcome);
+    StringBuilder name = new StringBuilder(method.getName());
+    name.append("/").append(returnsValue(method) ? "Supplier" : "Runnable");
+    if (timeout != null) {
+      name.append("/").append(timeout);
+    }
+    name.append("/").append(scenario);
+    name.append("->").append(expectedOutcome);
+    return name.toString();
   }
 
   @Override
