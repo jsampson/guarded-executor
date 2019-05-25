@@ -1272,12 +1272,19 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   private Object consumeResultOrInterrupt(final Thread currentThread, final Node currentNode)
       throws InterruptedException {
     if (Thread.interrupted()) {
-      final Object result = consumeResult(currentNode, true);
-      if (result != NOT_EXECUTED_YET) {
-        currentThread.interrupt();
-        return result;
-      } else {
-        throw new InterruptedException();
+      boolean throwingInterruptedException = false;
+      try {
+        Object result = consumeResult(currentNode, true);
+        if (result != NOT_EXECUTED_YET) {
+          return result;
+        } else {
+          throwingInterruptedException = true;
+          throw new InterruptedException();
+        }
+      } finally {
+        if (!throwingInterruptedException) {
+          Thread.currentThread().interrupt();
+        }
       }
     } else {
       return consumeResult(currentNode, false);
