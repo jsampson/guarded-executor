@@ -19,11 +19,9 @@ package guardedexecutor;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import junit.framework.TestCase;
-
-import static com.google.common.util.concurrent.Uninterruptibles.awaitUninterruptibly;
-import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
-import static guardedexecutor.GeneratedGuardedExecutorTest.startThread;
 
 /**
  * Supplemental tests for {@link GuardedExecutor}.
@@ -44,38 +42,38 @@ public class SupplementalGuardedExecutorTest extends TestCase {
   public void testThreadInterruptedButTaskThrew() throws InterruptedException {
     GuardedExecutor executor = new GuardedExecutor();
 
-    CountDownLatch blockerReady = new CountDownLatch(1);
-    CountDownLatch blockerDone = new CountDownLatch(1);
+    Checkpoint blockerReady = new Checkpoint();
+    Checkpoint blockerDone = new Checkpoint();
 
     startThread(() -> {
       executor.execute(() -> {
-        blockerReady.countDown();
-        awaitUninterruptibly(blockerDone);
+        blockerReady.go();
+        blockerDone.stop();
       });
     });
 
-    assertTrue(blockerReady.await(100, TimeUnit.MILLISECONDS));
+    blockerReady.check();
 
     assertEquals(0, executor.getQueueLength());
 
     RuntimeException thrownException = new RuntimeException();
     boolean[] interruptStatus = {false};
     Throwable[] caughtException = {null};
-    CountDownLatch resultReady = new CountDownLatch(1);
+    Checkpoint resultReady = new Checkpoint();
 
     startThread(() -> {
       Thread threadToInterrupt = Thread.currentThread();
       try {
         executor.executeInterruptibly(() -> {
           threadToInterrupt.interrupt();
-          sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+          sleepBriefly();
           throw thrownException;
         });
       } catch (Throwable throwable) {
         caughtException[0] = throwable;
       } finally {
         interruptStatus[0] = Thread.interrupted();
-        resultReady.countDown();
+        resultReady.go();
       }
     });
 
@@ -85,14 +83,113 @@ public class SupplementalGuardedExecutorTest extends TestCase {
 
     waitForQueueLength(2, executor);
 
-    blockerDone.countDown();
-
-    assertTrue(resultReady.await(100, TimeUnit.MILLISECONDS));
+    blockerDone.go();
+    resultReady.check();
 
     assertNotNull(caughtException[0]);
     assertEquals(CancellationException.class, caughtException[0].getClass());
     assertSame(thrownException, caughtException[0].getCause());
     assertEquals(true, interruptStatus[0]);
+  }
+
+  public void testProceedTriggersMisbehavedGuard() throws InterruptedException {
+    GuardedExecutor executor = new GuardedExecutor();
+    AtomicBoolean misbehavedGuard = new AtomicBoolean();
+    Checkpoint misbehavedTask = new Checkpoint();
+    startThread(() -> executor.executeWhen(misbehavedGuard::get, misbehavedTask::go));
+    waitForQueueLength(1, executor);
+    misbehavedGuard.set(true);
+    startThread(executor::proceed);
+    misbehavedTask.check();
+  }
+
+  public void testProceedDoesNotBlock() throws InterruptedException {
+    GuardedExecutor executor = new GuardedExecutor();
+
+    Checkpoint blockerReady = new Checkpoint();
+    Checkpoint blockerDone = new Checkpoint();
+
+    startThread(() -> {
+      executor.execute(() -> {
+        blockerReady.go();
+        blockerDone.stop();
+      });
+    });
+
+    blockerReady.check();
+
+    Checkpoint proceeded = new Checkpoint();
+
+    startThread(() -> {
+      executor.proceed();
+      proceeded.go();
+    });
+
+    proceeded.check();
+
+    blockerDone.go();
+  }
+
+  public void testProceedWhenSuccess() throws InterruptedException {
+    GuardedExecutor executor = new GuardedExecutor();
+    AtomicBoolean guard = new AtomicBoolean();
+    Checkpoint proceeded = new Checkpoint();
+
+    startThread(() -> {
+      executor.proceedWhen(guard::get);
+      proceeded.go();
+    });
+
+    waitForQueueLength(1, executor);
+
+    startThread(() -> executor.execute(() -> guard.set(true)));
+
+    proceeded.check();
+  }
+
+  public void testTryProceedWhenTimeout() throws InterruptedException {
+    GuardedExecutor executor = new GuardedExecutor();
+    Checkpoint proceeded = new Checkpoint();
+    Throwable[] thrown = {null};
+
+    startThread(() -> {
+      try {
+        executor.tryProceedWhen(() -> false, 10, TimeUnit.MILLISECONDS);
+      } catch (Throwable throwable) {
+        thrown[0] = throwable;
+      } finally {
+        proceeded.go();
+      }
+    });
+
+    proceeded.check();
+    assertNotNull(thrown[0]);
+    assertEquals(TimeoutException.class, thrown[0].getClass());
+  }
+
+  @FunctionalInterface
+  private interface Interruptible {
+    void run() throws InterruptedException;
+  }
+
+  private static void interruptless(Interruptible interruptible) {
+    try {
+      interruptible.run();
+    } catch (InterruptedException interrupted) {
+      Thread.currentThread().interrupt();
+      throw new AssertionError(interrupted);
+    }
+  }
+
+  private static Thread startThread(Interruptible interruptible) {
+    Thread thread = new Thread(() -> interruptless(interruptible));
+    thread.setDaemon(true);
+    thread.start();
+    return thread;
+  }
+
+  private static void sleepBriefly() {
+    interruptless(() -> Thread.sleep(10));
   }
 
   private static void waitForQueueLength(int expectedLength, GuardedExecutor executor) {
@@ -105,6 +202,25 @@ public class SupplementalGuardedExecutorTest extends TestCase {
       }
       Thread.yield();
     }
+  }
+
+  private static class Checkpoint {
+
+    private final CountDownLatch latch = new CountDownLatch(1);
+
+    void go() {
+      latch.countDown();
+    }
+
+    void stop() {
+      interruptless(latch::await);
+    }
+
+    void check() throws InterruptedException {
+      assertTrue("stopped at checkpoint more than 100ms",
+          latch.await(100, TimeUnit.MILLISECONDS));
+    }
+
   }
 
 }

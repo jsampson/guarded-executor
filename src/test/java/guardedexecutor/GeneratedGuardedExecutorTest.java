@@ -596,7 +596,7 @@ public class GeneratedGuardedExecutorTest extends TestCase {
     awaitUninterruptibly(enteredLatch);
   }
 
-  static void startThread(Runnable runnable) {
+  private static void startThread(Runnable runnable) {
     Thread thread = new Thread(runnable);
     thread.setDaemon(true);
     thread.start();
