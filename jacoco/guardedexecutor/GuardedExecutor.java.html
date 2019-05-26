@@ -517,11 +517,11 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   public final void proceed() {
     try {
-<span class="nc" id="L520">      tryExecute(() -&gt; {});</span>
-<span class="nc" id="L521">    } catch (TimeoutException e) {</span>
+<span class="fc" id="L520">      tryExecute(() -&gt; {});</span>
+<span class="fc" id="L521">    } catch (TimeoutException e) {</span>
       // Ignore, because this means that another thread is executing and will ensure progress.
-<span class="nc" id="L523">    }</span>
-<span class="nc" id="L524">  }</span>
+<span class="fc" id="L523">    }</span>
+<span class="fc" id="L524">  }</span>
 
   /**
    * Waits for the guard to become satisfied before proceeding, unless the current thread is
@@ -534,8 +534,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @throws NullPointerException if guard is null
    */
   public final void proceedWhen(BooleanSupplier guard) throws InterruptedException {
-<span class="nc" id="L537">    executeWhen(guard, () -&gt; {});</span>
-<span class="nc" id="L538">  }</span>
+<span class="fc" id="L537">    executeWhen(guard, () -&gt; {});</span>
+<span class="fc" id="L538">  }</span>
 
   /**
    * Waits for the guard to become satisfied before proceeding, blocking at most the given time or
@@ -573,7 +573,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return either the thread currently executing in this executor or {@code null}
    */
   public final Thread getExecutingThread() {
-<span class="nc bnc" id="L576" title="All 2 branches missed.">    return state == UNLOCKED ? null : getExclusiveOwnerThread();</span>
+<span class="fc bfc" id="L576" title="All 2 branches covered.">    return state == UNLOCKED ? null : getExclusiveOwnerThread();</span>
   }
 
   /**
@@ -584,14 +584,14 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return the collection of threads currently waiting
    */
   public final Collection&lt;Thread&gt; getQueuedThreads() {
-<span class="nc" id="L587">    List&lt;Thread&gt; threads = new ArrayList&lt;&gt;();</span>
-<span class="nc bnc" id="L588" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="nc" id="L589">      final Thread thread = node.thread;</span>
-<span class="nc bnc" id="L590" title="All 4 branches missed.">      if (thread != null &amp;&amp; node.status == WAITING) {</span>
-<span class="nc" id="L591">        threads.add(thread);</span>
+<span class="fc" id="L587">    List&lt;Thread&gt; threads = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L588" title="All 2 branches covered.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="fc" id="L589">      final Thread thread = node.thread;</span>
+<span class="pc bpc" id="L590" title="1 of 4 branches missed.">      if (thread != null &amp;&amp; node.status == WAITING) {</span>
+<span class="fc" id="L591">        threads.add(thread);</span>
       }
     }
-<span class="nc" id="L594">    return threads;</span>
+<span class="fc" id="L594">    return threads;</span>
   }
 
   /**
@@ -604,7 +604,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   public final int getQueueLength() {
 <span class="fc" id="L605">    int length = 0;</span>
 <span class="fc bfc" id="L606" title="All 2 branches covered.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="pc bpc" id="L607" title="1 of 2 branches missed.">      if (node.status == WAITING) {</span>
+<span class="fc bfc" id="L607" title="All 2 branches covered.">      if (node.status == WAITING) {</span>
 <span class="fc" id="L608">        length++;</span>
       }
     }
@@ -619,13 +619,13 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return {@code true} if the given thread is currently waiting
    */
   public final boolean hasQueuedThread(Thread thread) {
-<span class="nc" id="L622">    requireNonNull(thread);</span>
-<span class="nc bnc" id="L623" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="nc bnc" id="L624" title="All 4 branches missed.">      if (node.thread == thread &amp;&amp; node.status == WAITING) {</span>
-<span class="nc" id="L625">        return true;</span>
+<span class="fc" id="L622">    requireNonNull(thread);</span>
+<span class="fc bfc" id="L623" title="All 2 branches covered.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="pc bpc" id="L624" title="1 of 4 branches missed.">      if (node.thread == thread &amp;&amp; node.status == WAITING) {</span>
+<span class="fc" id="L625">        return true;</span>
       }
     }
-<span class="nc" id="L628">    return false;</span>
+<span class="fc" id="L628">    return false;</span>
   }
 
   /**
@@ -636,12 +636,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return {@code true} if any threads are currently waiting
    */
   public final boolean hasQueuedThreads() {
-<span class="nc bnc" id="L639" title="All 2 branches missed.">    for (Node node = tail; node != null; node = node.prev) {</span>
-<span class="nc bnc" id="L640" title="All 2 branches missed.">      if (node.status == WAITING) {</span>
-<span class="nc" id="L641">        return true;</span>
+<span class="fc bfc" id="L639" title="All 2 branches covered.">    for (Node node = tail; node != null; node = node.prev) {</span>
+<span class="fc bfc" id="L640" title="All 2 branches covered.">      if (node.status == WAITING) {</span>
+<span class="fc" id="L641">        return true;</span>
       }
     }
-<span class="nc" id="L644">    return false;</span>
+<span class="fc" id="L644">    return false;</span>
   }
 
   /**
@@ -650,7 +650,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    * @return {@code true} if any thread is currently executing
    */
   public final boolean isExecuting() {
-<span class="nc bnc" id="L653" title="All 2 branches missed.">    return state == LOCKED;</span>
+<span class="fc bfc" id="L653" title="All 2 branches covered.">    return state == LOCKED;</span>
   }
 
   /**
@@ -674,9 +674,9 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   @Override
   public final String toString() {
-<span class="nc" id="L677">    final Thread owner = getExecutingThread();</span>
-<span class="nc bnc" id="L678" title="All 2 branches missed.">    return super.toString()</span>
-<span class="nc" id="L679">        + (owner == null ? &quot;[Not executing]&quot; : &quot;[Executing in thread &quot; + owner.getName() + &quot;]&quot;);</span>
+<span class="fc" id="L677">    final Thread owner = getExecutingThread();</span>
+<span class="fc bfc" id="L678" title="All 2 branches covered.">    return super.toString()</span>
+<span class="fc" id="L679">        + (owner == null ? &quot;[Not executing]&quot; : &quot;[Executing in thread &quot; + owner.getName() + &quot;]&quot;);</span>
   }
 
   // ===============================================================================================
