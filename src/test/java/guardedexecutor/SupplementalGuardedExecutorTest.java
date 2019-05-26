@@ -16,6 +16,7 @@
 
 package guardedexecutor;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -165,6 +166,145 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     proceeded.check();
     assertNotNull(thrown[0]);
     assertEquals(TimeoutException.class, thrown[0].getClass());
+  }
+
+  public void testExecutionMonitoringMethods() throws InterruptedException {
+    GuardedExecutor executor = new GuardedExecutor();
+
+    String originalToString = executor.toString();
+    assertNull(executor.getExecutingThread());
+    assertEquals(false, executor.isExecuting());
+    assertEquals(false, executor.isExecutingInCurrentThread());
+    assertTrue(originalToString, originalToString.endsWith("[Not executing]"));
+
+    Checkpoint friendLocked = new Checkpoint();
+    Checkpoint friendUnlock = new Checkpoint();
+    Checkpoint friendDone = new Checkpoint();
+
+    Thread[] friendGetExecutingThread = {null};
+    boolean[] friendIsExecuting = {false};
+    boolean[] friendIsExecutingInCurrentThread = {false};
+    String[] friendToString = {null};
+
+    Thread friend = startThread(() -> {
+      Thread.currentThread().setName("FRIEND");
+      executor.execute(() -> {
+        friendGetExecutingThread[0] = executor.getExecutingThread();
+        friendIsExecuting[0] = executor.isExecuting();
+        friendIsExecutingInCurrentThread[0] = executor.isExecutingInCurrentThread();
+        friendToString[0] = executor.toString();
+        friendLocked.go();
+        friendUnlock.stop();
+      });
+      friendDone.go();
+    });
+
+    friendLocked.check();
+
+    assertSame(friend, friendGetExecutingThread[0]);
+    assertEquals(true, friendIsExecuting[0]);
+    assertEquals(true, friendIsExecutingInCurrentThread[0]);
+    assertEquals(originalToString.replace("[Not executing]", "[Executing in thread FRIEND]"),
+        friendToString[0]);
+
+    assertEquals(true, executor.isExecuting());
+    assertEquals(false, executor.isExecutingInCurrentThread());
+
+    friendUnlock.go();
+    friendDone.check();
+
+    assertNull(executor.getExecutingThread());
+    assertEquals(false, executor.isExecuting());
+    assertEquals(false, executor.isExecutingInCurrentThread());
+    assertEquals(originalToString, executor.toString());
+  }
+
+  public void testQueueMonitoringMethods() throws InterruptedException {
+    GuardedExecutor executor = new GuardedExecutor();
+
+    Checkpoint blockerReady = new Checkpoint();
+    Checkpoint blockerDone = new Checkpoint();
+
+    Thread blocker = startThread(() -> {
+      executor.execute(() -> {
+        blockerReady.go();
+        blockerDone.stop();
+      });
+    });
+
+    blockerReady.check();
+
+    Checkpoint[] waiterReady = new Checkpoint[3];
+    Checkpoint[] waiterDone = new Checkpoint[3];
+    Thread[] waiter = new Thread[3];
+
+    for (int i = 0; i < 3; i++) {
+      int index = i;
+      waiterReady[i] = new Checkpoint();
+      waiterDone[i] = new Checkpoint();
+      waiter[i] = startThread(() -> {
+        waiterReady[index].stop();
+        try {
+          executor.executeInterruptibly(() -> {});
+        } catch (InterruptedException interrupted) {
+          waiterDone[index].go();
+        }
+      });
+    }
+
+    assertEquals(0, executor.getQueueLength());
+    assertEquals(ImmutableSet.of(),
+        ImmutableSet.copyOf(executor.getQueuedThreads()));
+    assertEquals(false, executor.hasQueuedThreads());
+    assertEquals(false, executor.hasQueuedThread(blocker));
+    assertEquals(false, executor.hasQueuedThread(waiter[0]));
+    assertEquals(false, executor.hasQueuedThread(waiter[1]));
+    assertEquals(false, executor.hasQueuedThread(waiter[2]));
+
+    waiterReady[0].go();
+    waitForQueueLength(1, executor);
+    waiterReady[1].go();
+    waitForQueueLength(2, executor);
+    waiterReady[2].go();
+    waitForQueueLength(3, executor);
+
+    assertEquals(3, executor.getQueueLength());
+    assertEquals(ImmutableSet.copyOf(waiter),
+        ImmutableSet.copyOf(executor.getQueuedThreads()));
+    assertEquals(true, executor.hasQueuedThreads());
+    assertEquals(false, executor.hasQueuedThread(blocker));
+    assertEquals(true, executor.hasQueuedThread(waiter[0]));
+    assertEquals(true, executor.hasQueuedThread(waiter[1]));
+    assertEquals(true, executor.hasQueuedThread(waiter[2]));
+
+    waiter[1].interrupt();
+    waiterDone[1].check();
+
+    assertEquals(2, executor.getQueueLength());
+    assertEquals(ImmutableSet.of(waiter[0], waiter[2]),
+        ImmutableSet.copyOf(executor.getQueuedThreads()));
+    assertEquals(true, executor.hasQueuedThreads());
+    assertEquals(false, executor.hasQueuedThread(blocker));
+    assertEquals(true, executor.hasQueuedThread(waiter[0]));
+    assertEquals(false, executor.hasQueuedThread(waiter[1]));
+    assertEquals(true, executor.hasQueuedThread(waiter[2]));
+
+    waiter[0].interrupt();
+    waiterDone[0].check();
+
+    waiter[2].interrupt();
+    waiterDone[2].check();
+
+    assertEquals(0, executor.getQueueLength());
+    assertEquals(ImmutableSet.of(),
+        ImmutableSet.copyOf(executor.getQueuedThreads()));
+    assertEquals(false, executor.hasQueuedThreads());
+    assertEquals(false, executor.hasQueuedThread(blocker));
+    assertEquals(false, executor.hasQueuedThread(waiter[0]));
+    assertEquals(false, executor.hasQueuedThread(waiter[1]));
+    assertEquals(false, executor.hasQueuedThread(waiter[2]));
+
+    blockerDone.go();
   }
 
   @FunctionalInterface
