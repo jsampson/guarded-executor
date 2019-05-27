@@ -112,6 +112,95 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(true, interruptStatus[0]);
   }
 
+  public void testThreadInterruptedButTaskReturned() throws InterruptedException {
+    Checkpoint blockerReady = new Checkpoint();
+    Checkpoint blockerDone = new Checkpoint();
+
+    startThread(() -> {
+      executor.execute(() -> {
+        blockerReady.go();
+        blockerDone.stop();
+      });
+    });
+
+    blockerReady.check();
+
+    assertEquals(0, executor.getQueueLength());
+
+    boolean[] interruptStatus = {false};
+    Throwable[] caughtException = {null};
+    String[] returnedValue = {null};
+    Checkpoint resultReady = new Checkpoint();
+
+    startThread(() -> {
+      Thread threadToInterrupt = Thread.currentThread();
+      try {
+        returnedValue[0] = executor.executeInterruptibly(() -> {
+          threadToInterrupt.interrupt();
+          sleepBriefly();
+          return "foo";
+        });
+      } catch (Throwable throwable) {
+        caughtException[0] = throwable;
+      } finally {
+        interruptStatus[0] = Thread.interrupted();
+        resultReady.go();
+      }
+    });
+
+    waitForQueueLength(1);
+
+    startThread(() -> executor.execute(() -> {}));
+
+    waitForQueueLength(2);
+
+    blockerDone.go();
+    resultReady.check();
+
+    assertNull(caughtException[0]);
+    assertEquals(true, interruptStatus[0]);
+    assertEquals("foo", returnedValue[0]);
+  }
+
+  public void testUninterruptibleExecuteRestoresInterruptStatusAfterParking() throws Exception {
+    Checkpoint blockerReady = new Checkpoint();
+    Checkpoint blockerDone = new Checkpoint();
+
+    startThread(() -> {
+      executor.execute(() -> {
+        blockerReady.go();
+        blockerDone.stop();
+      });
+    });
+
+    blockerReady.check();
+
+    boolean[] interruptStatus = {false};
+    Throwable[] caughtException = {null};
+    String[] returnedValue = {null};
+    Checkpoint resultReady = new Checkpoint();
+
+    Thread thread = startThread(() -> {
+      Thread.currentThread().interrupt();
+      try {
+        returnedValue[0] = executor.execute(() -> "foo");
+      } catch (Throwable throwable) {
+        caughtException[0] = throwable;
+      } finally {
+        interruptStatus[0] = Thread.interrupted();
+        resultReady.go();
+      }
+    });
+
+    yieldUntilParked(thread);
+    blockerDone.go();
+    resultReady.check();
+
+    assertNull(caughtException[0]);
+    assertEquals(true, interruptStatus[0]);
+    assertEquals("foo", returnedValue[0]);
+  }
+
   public void testProceedTriggersMisbehavedGuard() throws InterruptedException {
     AtomicBoolean misbehavedGuard = new AtomicBoolean();
     Checkpoint misbehavedTask = new Checkpoint();
@@ -180,6 +269,28 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     proceeded.check();
     assertNotNull(thrown[0]);
     assertEquals(TimeoutException.class, thrown[0].getClass());
+  }
+
+  public void testTryProceedWhenSuccess() throws InterruptedException {
+    AtomicBoolean guard = new AtomicBoolean();
+    Checkpoint proceeded = new Checkpoint();
+    Throwable[] thrown = {null};
+
+    Thread thread = startThread(() -> {
+      try {
+        executor.tryProceedWhen(guard::get, 1, TimeUnit.SECONDS);
+      } catch (Throwable throwable) {
+        thrown[0] = throwable;
+      } finally {
+        proceeded.go();
+      }
+    });
+
+    yieldUntilParked(thread);
+    executor.execute(() -> guard.set(true));
+
+    proceeded.check();
+    assertNull(thrown[0]);
   }
 
   public void testExecutionMonitoringMethods() throws InterruptedException {
@@ -315,6 +426,66 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(false, executor.hasQueuedThread(waiter[2]));
 
     blockerDone.go();
+  }
+
+  public void testRunnableSupplierPassedAsRunnableWithoutParking() {
+    RunnableSupplier task = new RunnableSupplier();
+    executor.execute((Runnable) task);
+    assertTrue("run() should be called", task.runCalled);
+    assertFalse("get() should not be called", task.getCalled);
+  }
+
+  public void testRunnableSupplierPassedAsSupplierWithoutParking() {
+    RunnableSupplier task = new RunnableSupplier();
+    assertEquals("foo", executor.execute((Supplier<String>) task));
+    assertFalse("run() should not be called", task.runCalled);
+    assertTrue("get() should be called", task.getCalled);
+  }
+
+  public void testRunnableSupplierPassedAsRunnableWithParking() throws InterruptedException {
+    AtomicBoolean guard = new AtomicBoolean();
+    RunnableSupplier task = new RunnableSupplier();
+    Checkpoint finished = new Checkpoint();
+    Thread thread = startThread(() -> {
+      executor.executeWhen(guard::get, (Runnable) task);
+      finished.go();
+    });
+    yieldUntilParked(thread);
+    assertFalse("run() should not be called yet", task.runCalled);
+    assertFalse("get() should not be called yet", task.getCalled);
+    executor.execute(() -> guard.set(true));
+    finished.check();
+    assertTrue("run() should be called", task.runCalled);
+    assertFalse("get() should not be called", task.getCalled);
+  }
+
+  public void testRunnableSupplierPassedAsSupplierWithParking() throws InterruptedException {
+    RunnableSupplier task = new RunnableSupplier();
+    try {
+      executor.executeWhen(() -> false, (Supplier<?>) task);
+      fail("should have thrown an exception");
+    } catch (IllegalArgumentException expected) {
+      assertFalse("run() should not be called", task.runCalled);
+      assertFalse("get() should not be called", task.getCalled);
+    }
+  }
+
+  private static class RunnableSupplier implements Runnable, Supplier<String> {
+
+    volatile boolean runCalled = false;
+    volatile boolean getCalled = false;
+
+    @Override
+    public void run() {
+      runCalled = true;
+    }
+
+    @Override
+    public String get() {
+      getCalled = true;
+      return "foo";
+    }
+
   }
 
   public void testThrowingExceptionFromGuardInSameThreadBeforeParking() throws Exception {
@@ -546,11 +717,15 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     }
 
     void waitForParked() {
-      yieldUntil(
-          () -> LockSupport.getBlocker(thread) == executor,
-          () -> "thread not parked in executor");
+      yieldUntilParked(thread);
     }
 
+  }
+
+  private void yieldUntilParked(Thread thread) {
+    yieldUntil(
+        () -> LockSupport.getBlocker(thread) == executor,
+        () -> "thread not parked in executor");
   }
 
   private static void throwUnchecked(Throwable throwable) {
