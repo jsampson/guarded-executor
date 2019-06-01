@@ -20,6 +20,8 @@ import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +34,7 @@ import java.util.function.Supplier;
 import junit.framework.TestCase;
 
 import static java.util.Arrays.asList;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Supplemental tests for {@link GuardedExecutor}.
@@ -67,339 +70,244 @@ public class SupplementalGuardedExecutorTest extends TestCase {
    * @see <a href="https://github.com/jsampson/guarded-executor/issues/1">Issue #1</a>
    */
   public void testThreadInterruptedButTaskThrew() throws InterruptedException {
-    Checkpoint blockerReady = new Checkpoint();
-    Checkpoint blockerDone = new Checkpoint();
+    TestingThread<Void> blocker = startTestingThread("blocker", () -> executor.execute(() -> {
+      arrive("blocked");
+      pause("return");
+    }));
 
-    startThread(() -> {
-      executor.execute(() -> {
-        blockerReady.go();
-        blockerDone.stop();
-      });
-    });
-
-    blockerReady.check();
-
+    blocker.checkArrived("blocked");
     assertEquals(0, executor.getQueueLength());
 
     RuntimeException thrownException = new RuntimeException();
-    boolean[] interruptStatus = {false};
-    Throwable[] caughtException = {null};
-    Checkpoint resultReady = new Checkpoint();
 
-    startThread(() -> {
+    TestingThread<Void> submitter = startTestingThread("submitter", () -> {
       Thread threadToInterrupt = Thread.currentThread();
-      try {
-        executor.executeInterruptibly(() -> {
-          threadToInterrupt.interrupt();
-          sleepBriefly();
-          throw thrownException;
-        });
-      } catch (Throwable throwable) {
-        caughtException[0] = throwable;
-      } finally {
-        interruptStatus[0] = Thread.interrupted();
-        resultReady.go();
-      }
+      executor.executeInterruptibly(() -> {
+        threadToInterrupt.interrupt();
+        sleepBriefly();
+        throw thrownException;
+      });
     });
 
-    waitForQueueLength(1);
+    submitter.waitForParked();
+    assertEquals(1, executor.getQueueLength());
 
-    startThread(() -> executor.execute(() -> {}));
+    TestingThread<Void> tail = startTestingThread("tail", () -> executor.execute(() -> {}));
 
-    waitForQueueLength(2);
+    tail.waitForParked();
+    assertEquals(2, executor.getQueueLength());
 
-    blockerDone.go();
-    resultReady.check();
+    blocker.unpause("return");
+    blocker.assertNotInterruptedAtEnd();
+    blocker.assertNothingCaughtAtEnd();
 
-    assertNotNull(caughtException[0]);
-    assertEquals(CancellationException.class, caughtException[0].getClass());
-    assertSame(thrownException, caughtException[0].getCause());
-    assertEquals(true, interruptStatus[0]);
+    submitter.assertInterruptedAtEnd();
+    submitter.assertCaughtAtEnd(CancellationException.class, thrownException);
+
+    tail.assertNotInterruptedAtEnd();
+    tail.assertNothingCaughtAtEnd();
   }
 
   public void testThreadInterruptedButTaskReturned() throws InterruptedException {
-    Checkpoint blockerReady = new Checkpoint();
-    Checkpoint blockerDone = new Checkpoint();
+    TestingThread<Void> blocker = startTestingThread("blocker", () -> executor.execute(() -> {
+      arrive("blocked");
+      pause("return");
+    }));
 
-    startThread(() -> {
-      executor.execute(() -> {
-        blockerReady.go();
-        blockerDone.stop();
+    blocker.checkArrived("blocked");
+    assertEquals(0, executor.getQueueLength());
+
+    TestingThread<String> submitter = startTestingThread("submitter", () -> {
+      Thread threadToInterrupt = Thread.currentThread();
+      return executor.executeInterruptibly(() -> {
+        threadToInterrupt.interrupt();
+        sleepBriefly();
+        return "foo";
       });
     });
 
-    blockerReady.check();
+    submitter.waitForParked();
+    assertEquals(1, executor.getQueueLength());
 
-    assertEquals(0, executor.getQueueLength());
+    TestingThread<Void> tail = startTestingThread("tail", () -> executor.execute(() -> {}));
 
-    boolean[] interruptStatus = {false};
-    Throwable[] caughtException = {null};
-    String[] returnedValue = {null};
-    Checkpoint resultReady = new Checkpoint();
+    tail.waitForParked();
+    assertEquals(2, executor.getQueueLength());
 
-    startThread(() -> {
-      Thread threadToInterrupt = Thread.currentThread();
-      try {
-        returnedValue[0] = executor.executeInterruptibly(() -> {
-          threadToInterrupt.interrupt();
-          sleepBriefly();
-          return "foo";
-        });
-      } catch (Throwable throwable) {
-        caughtException[0] = throwable;
-      } finally {
-        interruptStatus[0] = Thread.interrupted();
-        resultReady.go();
-      }
-    });
+    blocker.unpause("return");
+    blocker.assertNotInterruptedAtEnd();
+    blocker.assertNothingCaughtAtEnd();
 
-    waitForQueueLength(1);
+    submitter.assertInterruptedAtEnd();
+    submitter.assertNothingCaughtAtEnd();
+    submitter.assertReturnedValue("foo");
 
-    startThread(() -> executor.execute(() -> {}));
-
-    waitForQueueLength(2);
-
-    blockerDone.go();
-    resultReady.check();
-
-    assertNull(caughtException[0]);
-    assertEquals(true, interruptStatus[0]);
-    assertEquals("foo", returnedValue[0]);
+    tail.assertNotInterruptedAtEnd();
+    tail.assertNothingCaughtAtEnd();
   }
 
   public void testUninterruptibleExecuteRestoresInterruptStatusAfterParking() throws Exception {
-    Checkpoint blockerReady = new Checkpoint();
-    Checkpoint blockerDone = new Checkpoint();
+    TestingThread<Void> blocker = startTestingThread("blocker", () -> executor.execute(() -> {
+      arrive("blocked");
+      pause("return");
+    }));
 
-    startThread(() -> {
-      executor.execute(() -> {
-        blockerReady.go();
-        blockerDone.stop();
-      });
-    });
+    blocker.checkArrived("blocked");
+    assertEquals(0, executor.getQueueLength());
 
-    blockerReady.check();
-
-    boolean[] interruptStatus = {false};
-    Throwable[] caughtException = {null};
-    String[] returnedValue = {null};
-    Checkpoint resultReady = new Checkpoint();
-
-    Thread thread = startThread(() -> {
+    TestingThread<String> submitter = startTestingThread("submitter", () -> {
       Thread.currentThread().interrupt();
-      try {
-        returnedValue[0] = executor.execute(() -> "foo");
-      } catch (Throwable throwable) {
-        caughtException[0] = throwable;
-      } finally {
-        interruptStatus[0] = Thread.interrupted();
-        resultReady.go();
-      }
+      return executor.execute(() -> "foo");
     });
 
-    yieldUntilParked(thread);
-    blockerDone.go();
-    resultReady.check();
+    submitter.waitForParked();
+    assertEquals(1, executor.getQueueLength());
 
-    assertNull(caughtException[0]);
-    assertEquals(true, interruptStatus[0]);
-    assertEquals("foo", returnedValue[0]);
+    blocker.unpause("return");
+    blocker.assertNotInterruptedAtEnd();
+    blocker.assertNothingCaughtAtEnd();
+
+    submitter.assertInterruptedAtEnd();
+    submitter.assertNothingCaughtAtEnd();
+    submitter.assertReturnedValue("foo");
   }
 
   public void testAdditionalTaskArrivesAfterTentativeTail() throws InterruptedException {
     AtomicBoolean flag = new AtomicBoolean();
-    Checkpoint checkpoint1 = new Checkpoint();
-    Checkpoint checkpoint2 = new Checkpoint();
-    Checkpoint checkpoint3 = new Checkpoint();
     List<String> list = new ArrayList<>();
 
-    startThread(() -> {
+    TestingThread<Void> thread1 = startTestingThread("thread1", () -> {
       executor.executeWhen(() -> {
         if (!flag.get()) {
-          checkpoint1.go();
-          checkpoint2.stop();
+          arrive("first time in guard");
+          pause("returning from guard");
         }
         return flag.get();
       }, () -> list.add("a"));
-      checkpoint3.go();
     });
 
-    checkpoint1.check();
+    thread1.checkArrived("first time in guard");
 
-    yieldUntilParked(startThread(() -> executor.execute(() -> {
+    TestingThread<Void> thread2 = startTestingThread("thread2", () -> executor.execute(() -> {
       flag.set(true);
       list.add("b");
-    })));
+    }));
 
+    thread2.waitForParked();
     assertEquals(1, executor.getQueueLength());
-    checkpoint2.go();
-    checkpoint3.check();
 
+    thread1.unpause("returning from guard");
+    thread1.waitForExited();
     assertEquals(0, executor.getQueueLength());
+
     assertEquals(asList("b", "a"), list);
   }
 
   public void testAdditionalTaskArrivesAfterTentativeTailAndThrows() throws InterruptedException {
     AtomicBoolean flag = new AtomicBoolean();
-    Checkpoint checkpoint1 = new Checkpoint();
-    Checkpoint checkpoint2 = new Checkpoint();
-    Checkpoint checkpoint3 = new Checkpoint();
-    Checkpoint checkpoint4 = new Checkpoint();
     Error thrown = new Error();
-    Throwable[] caught = {null, null};
 
-    startThread(() -> {
-      try {
-        executor.executeWhen(() -> {
-          checkpoint1.go();
-          checkpoint2.stop();
-          return false;
-        }, () -> {});
-      } catch (Throwable throwable) {
-        caught[0] = throwable;
-      }
-      checkpoint3.go();
+    TestingThread<Void> thread1 = startTestingThread("thread1", () -> {
+      executor.executeWhen(() -> {
+        arrive("first time in guard");
+        pause("returning from guard");
+        return false;
+      }, () -> {});
     });
 
-    checkpoint1.check();
+    thread1.checkArrived("first time in guard");
 
-    yieldUntilParked(startThread(() -> {
-      try {
-        executor.execute(() -> {
-          throw thrown;
-        });
-      } catch (Throwable throwable) {
-        caught[1] = throwable;
-      }
-      checkpoint4.go();
-    }));
+    TestingThread<Void> thread2 = startTestingThread("thread2", () -> {
+      executor.execute(() -> {
+        throw thrown;
+      });
+    });
 
+    thread2.waitForParked();
     assertEquals(1, executor.getQueueLength());
-    checkpoint2.go();
-    checkpoint3.check();
-    checkpoint4.check();
 
+    thread1.unpause("returning from guard");
+    thread1.waitForExited();
+    thread2.waitForExited();
     assertEquals(0, executor.getQueueLength());
 
-    assertSame(thrown, caught[0]);
-
-    assertNotNull(caught[1]);
-    assertEquals(CancellationException.class, caught[1].getClass());
-    assertSame(thrown, caught[1].getCause());
+    thread1.assertCaughtAtEnd(thrown);
+    thread2.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testReentrantExecutionDisallowed() throws InterruptedException {
     AtomicBoolean innerExecuted = new AtomicBoolean();
-    Checkpoint checkpoint = new Checkpoint();
-    Throwable[] caught = {null};
 
-    startThread(() -> {
-      try {
-        executor.execute(() -> {
-          executor.execute(() -> innerExecuted.set(true));
-        });
-      } catch (Throwable throwable) {
-        caught[0] = throwable;
-      }
-      checkpoint.go();
+    TestingThread<Void> thread = startTestingThread("thread", () -> {
+      executor.execute(() -> {
+        executor.execute(() -> innerExecuted.set(true));
+      });
     });
 
-    checkpoint.check();
+    thread.waitForExited();
+    thread.assertCaughtAtEnd(RejectedExecutionException.class);
     assertFalse(innerExecuted.get());
-    assertNotNull(caught[0]);
-    assertEquals(RejectedExecutionException.class, caught[0].getClass());
   }
 
   public void testProceedTriggersMisbehavedGuard() throws InterruptedException {
     AtomicBoolean misbehavedGuard = new AtomicBoolean();
-    Checkpoint misbehavedTask = new Checkpoint();
-    startThread(() -> executor.executeWhen(misbehavedGuard::get, misbehavedTask::go));
-    waitForQueueLength(1);
+    TestingThread<String> misbehavedTask = startTestingThread("misbehavedTask", () -> {
+      return executor.executeWhen(misbehavedGuard::get, () -> "foo");
+    });
+    misbehavedTask.waitForParked();
+    assertEquals(1, executor.getQueueLength());
     misbehavedGuard.set(true);
-    startThread(executor::proceed);
-    misbehavedTask.check();
+    startTestingThread("proceed", executor::proceed);
+    misbehavedTask.assertReturnedValue("foo");
   }
 
   public void testProceedDoesNotBlock() throws InterruptedException {
-    Checkpoint blockerReady = new Checkpoint();
-    Checkpoint blockerDone = new Checkpoint();
+    TestingThread<Void> blocker = startTestingThread("blocker", () -> executor.execute(() -> {
+      arrive("blocked");
+      pause("return");
+    }));
+    blocker.checkArrived("blocked");
 
-    startThread(() -> {
-      executor.execute(() -> {
-        blockerReady.go();
-        blockerDone.stop();
-      });
-    });
+    TestingThread<Void> proceed = startTestingThread("proceed", executor::proceed);
+    proceed.waitForExited();
 
-    blockerReady.check();
-
-    Checkpoint proceeded = new Checkpoint();
-
-    startThread(() -> {
-      executor.proceed();
-      proceeded.go();
-    });
-
-    proceeded.check();
-
-    blockerDone.go();
+    blocker.unpause("return");
   }
 
   public void testProceedWhenSuccess() throws InterruptedException {
     AtomicBoolean guard = new AtomicBoolean();
-    Checkpoint proceeded = new Checkpoint();
 
-    startThread(() -> {
+    TestingThread<Void> proceedWhen = startTestingThread("proceedWhen", () -> {
       executor.proceedWhen(guard::get);
-      proceeded.go();
     });
 
-    waitForQueueLength(1);
+    proceedWhen.waitForParked();
+    assertEquals(1, executor.getQueueLength());
 
-    startThread(() -> executor.execute(() -> guard.set(true)));
+    startTestingThread("satisfyGuard", () -> executor.execute(() -> guard.set(true)));
 
-    proceeded.check();
+    proceedWhen.waitForExited();
   }
 
   public void testTryProceedWhenTimeout() throws InterruptedException {
-    Checkpoint proceeded = new Checkpoint();
-    Throwable[] thrown = {null};
-
-    startThread(() -> {
-      try {
-        executor.tryProceedWhen(() -> false, 10, TimeUnit.MILLISECONDS);
-      } catch (Throwable throwable) {
-        thrown[0] = throwable;
-      } finally {
-        proceeded.go();
-      }
+    TestingThread<Void> tryProceedWhen = startTestingThread("tryProceedWhen", () -> {
+      executor.tryProceedWhen(() -> false, 10, TimeUnit.MILLISECONDS);
     });
 
-    proceeded.check();
-    assertNotNull(thrown[0]);
-    assertEquals(TimeoutException.class, thrown[0].getClass());
+    tryProceedWhen.assertCaughtAtEnd(TimeoutException.class);
   }
 
   public void testTryProceedWhenSuccess() throws InterruptedException {
     AtomicBoolean guard = new AtomicBoolean();
-    Checkpoint proceeded = new Checkpoint();
-    Throwable[] thrown = {null};
 
-    Thread thread = startThread(() -> {
-      try {
-        executor.tryProceedWhen(guard::get, 1, TimeUnit.SECONDS);
-      } catch (Throwable throwable) {
-        thrown[0] = throwable;
-      } finally {
-        proceeded.go();
-      }
+    TestingThread<Void> tryProceedWhen = startTestingThread("tryProceedWhen", () -> {
+      executor.tryProceedWhen(guard::get, 1, TimeUnit.SECONDS);
     });
 
-    yieldUntilParked(thread);
-    executor.execute(() -> guard.set(true));
+    tryProceedWhen.waitForParked();
+    startTestingThread("satisfyGuard", () -> executor.execute(() -> guard.set(true)));
 
-    proceeded.check();
-    assertNull(thrown[0]);
+    tryProceedWhen.assertNothingCaughtAtEnd();
   }
 
   public void testExecutionMonitoringMethods() throws InterruptedException {
@@ -409,29 +317,23 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(false, executor.isExecutingInCurrentThread());
     assertTrue(originalToString, originalToString.endsWith("[Not executing]"));
 
-    Checkpoint friendLocked = new Checkpoint();
-    Checkpoint friendUnlock = new Checkpoint();
-    Checkpoint friendDone = new Checkpoint();
-
     Thread[] friendGetExecutingThread = {null};
     boolean[] friendIsExecuting = {false};
     boolean[] friendIsExecutingInCurrentThread = {false};
     String[] friendToString = {null};
 
-    Thread friend = startThread(() -> {
-      Thread.currentThread().setName("FRIEND");
+    TestingThread<Void> friend = startTestingThread("FRIEND", () -> {
       executor.execute(() -> {
         friendGetExecutingThread[0] = executor.getExecutingThread();
         friendIsExecuting[0] = executor.isExecuting();
         friendIsExecutingInCurrentThread[0] = executor.isExecutingInCurrentThread();
         friendToString[0] = executor.toString();
-        friendLocked.go();
-        friendUnlock.stop();
+        arrive("locked");
+        pause("unlock");
       });
-      friendDone.go();
     });
 
-    friendLocked.check();
+    friend.checkArrived("locked");
 
     assertSame(friend, friendGetExecutingThread[0]);
     assertEquals(true, friendIsExecuting[0]);
@@ -442,8 +344,8 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(true, executor.isExecuting());
     assertEquals(false, executor.isExecutingInCurrentThread());
 
-    friendUnlock.go();
-    friendDone.check();
+    friend.unpause("unlock");
+    friend.waitForExited();
 
     assertNull(executor.getExecutingThread());
     assertEquals(false, executor.isExecuting());
@@ -452,33 +354,19 @@ public class SupplementalGuardedExecutorTest extends TestCase {
   }
 
   public void testQueueMonitoringMethods() throws InterruptedException {
-    Checkpoint blockerReady = new Checkpoint();
-    Checkpoint blockerDone = new Checkpoint();
+    TestingThread<Void> blocker = startTestingThread("blocker", () -> executor.execute(() -> {
+      arrive("blocked");
+      pause("return");
+    }));
 
-    Thread blocker = startThread(() -> {
-      executor.execute(() -> {
-        blockerReady.go();
-        blockerDone.stop();
-      });
-    });
+    blocker.checkArrived("blocked");
 
-    blockerReady.check();
-
-    Checkpoint[] waiterReady = new Checkpoint[3];
-    Checkpoint[] waiterDone = new Checkpoint[3];
-    Thread[] waiter = new Thread[3];
+    TestingThread<?>[] waiter = new TestingThread<?>[3];
 
     for (int i = 0; i < 3; i++) {
-      int index = i;
-      waiterReady[i] = new Checkpoint();
-      waiterDone[i] = new Checkpoint();
-      waiter[i] = startThread(() -> {
-        waiterReady[index].stop();
-        try {
-          executor.executeInterruptibly(() -> {});
-        } catch (InterruptedException interrupted) {
-          waiterDone[index].go();
-        }
+      waiter[i] = startTestingThread("waiter" + i, () -> {
+        pause("ready");
+        executor.executeInterruptibly(() -> {});
       });
     }
 
@@ -491,12 +379,17 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(false, executor.hasQueuedThread(waiter[1]));
     assertEquals(false, executor.hasQueuedThread(waiter[2]));
 
-    waiterReady[0].go();
-    waitForQueueLength(1);
-    waiterReady[1].go();
-    waitForQueueLength(2);
-    waiterReady[2].go();
-    waitForQueueLength(3);
+    waiter[0].unpause("ready");
+    waiter[0].waitForParked();
+    assertEquals(1, executor.getQueueLength());
+
+    waiter[1].unpause("ready");
+    waiter[1].waitForParked();
+    assertEquals(2, executor.getQueueLength());
+
+    waiter[2].unpause("ready");
+    waiter[2].waitForParked();
+    assertEquals(3, executor.getQueueLength());
 
     assertEquals(3, executor.getQueueLength());
     assertEquals(ImmutableSet.copyOf(waiter),
@@ -508,7 +401,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(true, executor.hasQueuedThread(waiter[2]));
 
     waiter[1].interrupt();
-    waiterDone[1].check();
+    waiter[1].waitForExited();
 
     assertEquals(2, executor.getQueueLength());
     assertEquals(ImmutableSet.of(waiter[0], waiter[2]),
@@ -520,10 +413,10 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(true, executor.hasQueuedThread(waiter[2]));
 
     waiter[0].interrupt();
-    waiterDone[0].check();
+    waiter[0].waitForExited();
 
     waiter[2].interrupt();
-    waiterDone[2].check();
+    waiter[2].waitForExited();
 
     assertEquals(0, executor.getQueueLength());
     assertEquals(ImmutableSet.of(),
@@ -534,7 +427,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(false, executor.hasQueuedThread(waiter[1]));
     assertEquals(false, executor.hasQueuedThread(waiter[2]));
 
-    blockerDone.go();
+    blocker.unpause("return");
   }
 
   public void testRunnableSupplierPassedAsRunnableWithoutParking() {
@@ -554,16 +447,14 @@ public class SupplementalGuardedExecutorTest extends TestCase {
   public void testRunnableSupplierPassedAsRunnableWithParking() throws InterruptedException {
     AtomicBoolean guard = new AtomicBoolean();
     RunnableSupplier task = new RunnableSupplier();
-    Checkpoint finished = new Checkpoint();
-    Thread thread = startThread(() -> {
+    TestingThread<Void> submitter = startTestingThread("submitter", () -> {
       executor.executeWhen(guard::get, (Runnable) task);
-      finished.go();
     });
-    yieldUntilParked(thread);
+    submitter.waitForParked();
     assertFalse("run() should not be called yet", task.runCalled);
     assertFalse("get() should not be called yet", task.getCalled);
     executor.execute(() -> guard.set(true));
-    finished.check();
+    submitter.waitForExited();
     assertTrue("run() should be called", task.runCalled);
     assertFalse("get() should not be called", task.getCalled);
   }
@@ -599,113 +490,121 @@ public class SupplementalGuardedExecutorTest extends TestCase {
 
   public void testThrowingExceptionFromGuardInSameThreadBeforeParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(thrown, null);
-    assertSame(thrown, thread.checkCaught(false));
+    ThrowingThread thread = startThrowingThread(thrown, null);
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingErrorFromGuardInSameThreadBeforeParking() throws Exception {
     Error thrown  = new Error();
-    ThrowingThread thread = new ThrowingThread(thrown, null);
-    assertSame(thrown, thread.checkCaught(false));
+    ThrowingThread thread = startThrowingThread(thrown, null);
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingExceptionFromTaskInSameThreadBeforeParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(true, thrown);
-    assertSame(thrown, thread.checkCaught(true));
+    ThrowingThread thread = startThrowingThread(true, thrown);
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingErrorFromTaskInSameThreadBeforeParking() throws Exception {
     Error thrown = new Error();
-    ThrowingThread thread = new ThrowingThread(true, thrown);
-    assertSame(thrown, thread.checkCaught(true));
+    ThrowingThread thread = startThrowingThread(true, thrown);
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingExceptionFromGuardInSameThreadAfterParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(false, null);
+    ThrowingThread thread = startThrowingThread(false, null);
     thread.waitForParked();
     startThread(() -> executor.execute(() -> thread.setGuardThrows(thrown)));
-    assertSame(thrown, thread.checkCaught(false));
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingErrorFromGuardInSameThreadAfterParking() throws Exception {
     Error thrown = new Error();
-    ThrowingThread thread = new ThrowingThread(false, null);
+    ThrowingThread thread = startThrowingThread(false, null);
     thread.waitForParked();
     startThread(() -> executor.execute(() -> thread.setGuardThrows(thrown)));
-    assertSame(thrown, thread.checkCaught(false));
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingExceptionFromTaskInSameThreadAfterParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(false, thrown);
+    ThrowingThread thread = startThrowingThread(false, thrown);
     thread.waitForParked();
     startThread(() -> executor.execute(() -> thread.setGuardReturns(true)));
-    assertSame(thrown, thread.checkCaught(true));
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingErrorFromTaskInSameThreadAfterParking() throws Exception {
     Error thrown = new Error();
-    ThrowingThread thread = new ThrowingThread(false, thrown);
+    ThrowingThread thread = startThrowingThread(false, thrown);
     thread.waitForParked();
     startThread(() -> executor.execute(() -> thread.setGuardReturns(true)));
-    assertSame(thrown, thread.checkCaught(true));
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(thrown);
   }
 
   public void testThrowingExceptionFromGuardInOtherThreadBeforeParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(false, null);
+    ThrowingThread thread = startThrowingThread(false, null);
     thread.waitForParked();
     thread.setGuardThrows(thrown);
-    ThrowingThread otherThread = new ThrowingThread(true, null);
-    assertNull(otherThread.checkCaught(true));
-    Throwable caught = thread.checkCaught(false);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    ThrowingThread otherThread = startThrowingThread(true, null);
+    otherThread.assertTaskExecuted();
+    otherThread.assertNothingCaughtAtEnd();
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testThrowingErrorFromGuardInOtherThreadBeforeParking() throws Exception {
     Error thrown = new Error();
-    ThrowingThread thread = new ThrowingThread(false, null);
+    ThrowingThread thread = startThrowingThread(false, null);
     thread.waitForParked();
     thread.setGuardThrows(thrown);
-    ThrowingThread otherThread = new ThrowingThread(true, null);
-    assertSame(thrown, otherThread.checkCaught(false));
-    Throwable caught = thread.checkCaught(false);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    ThrowingThread otherThread = startThrowingThread(true, null);
+    otherThread.assertTaskNotExecuted();
+    otherThread.assertCaughtAtEnd(thrown);
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testThrowingExceptionFromTaskInOtherThreadBeforeParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(false, thrown);
+    ThrowingThread thread = startThrowingThread(false, thrown);
     thread.waitForParked();
     thread.setGuardReturns(true);
-    ThrowingThread otherThread = new ThrowingThread(true, null);
-    assertNull(otherThread.checkCaught(true));
-    Throwable caught = thread.checkCaught(true);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    ThrowingThread otherThread = startThrowingThread(true, null);
+    otherThread.assertTaskExecuted();
+    otherThread.assertNothingCaughtAtEnd();
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testThrowingErrorFromTaskInOtherThreadBeforeParking() throws Exception {
     Error thrown = new Error();
-    ThrowingThread thread = new ThrowingThread(false, thrown);
+    ThrowingThread thread = startThrowingThread(false, thrown);
     thread.waitForParked();
     thread.setGuardReturns(true);
-    ThrowingThread otherThread = new ThrowingThread(true, null);
-    assertSame(thrown, otherThread.checkCaught(false));
-    Throwable caught = thread.checkCaught(true);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    ThrowingThread otherThread = startThrowingThread(true, null);
+    otherThread.assertTaskNotExecuted();
+    otherThread.assertCaughtAtEnd(thrown);
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testThrowingExceptionFromGuardInOtherThreadAfterParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(false, null);
+    ThrowingThread thread = startThrowingThread(false, null);
     thread.waitForParked();
-    ThrowingThread otherThread = new ThrowingThread(false, null);
+    ThrowingThread otherThread = startThrowingThread(false, null);
     otherThread.waitForParked();
 
     startThread(() -> executor.execute(() -> {
@@ -713,17 +612,17 @@ public class SupplementalGuardedExecutorTest extends TestCase {
       otherThread.setGuardReturns(true);
     }));
 
-    assertNull(otherThread.checkCaught(true));
-    Throwable caught = thread.checkCaught(false);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    otherThread.assertTaskExecuted();
+    otherThread.assertNothingCaughtAtEnd();
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testThrowingErrorFromGuardInOtherThreadAfterParking() throws Exception {
     Error thrown = new Error();
-    ThrowingThread thread = new ThrowingThread(false, null);
+    ThrowingThread thread = startThrowingThread(false, null);
     thread.waitForParked();
-    ThrowingThread otherThread = new ThrowingThread(false, null);
+    ThrowingThread otherThread = startThrowingThread(false, null);
     otherThread.waitForParked();
 
     startThread(() -> executor.execute(() -> {
@@ -731,17 +630,17 @@ public class SupplementalGuardedExecutorTest extends TestCase {
       otherThread.setGuardReturns(true);
     }));
 
-    assertSame(thrown, otherThread.checkCaught(false));
-    Throwable caught = thread.checkCaught(false);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    otherThread.assertTaskNotExecuted();
+    otherThread.assertCaughtAtEnd(thrown);
+    thread.assertTaskNotExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testThrowingExceptionFromTaskInOtherThreadAfterParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
-    ThrowingThread thread = new ThrowingThread(false, thrown);
+    ThrowingThread thread = startThrowingThread(false, thrown);
     thread.waitForParked();
-    ThrowingThread otherThread = new ThrowingThread(false, null);
+    ThrowingThread otherThread = startThrowingThread(false, null);
     otherThread.waitForParked();
 
     startThread(() -> executor.execute(() -> {
@@ -749,17 +648,17 @@ public class SupplementalGuardedExecutorTest extends TestCase {
       otherThread.setGuardReturns(true);
     }));
 
-    assertNull(otherThread.checkCaught(true));
-    Throwable caught = thread.checkCaught(true);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    otherThread.assertTaskExecuted();
+    otherThread.assertNothingCaughtAtEnd();
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
   public void testThrowingErrorFromTaskInOtherThreadAfterParking() throws Exception {
     Error thrown = new Error();
-    ThrowingThread thread = new ThrowingThread(false, thrown);
+    ThrowingThread thread = startThrowingThread(false, thrown);
     thread.waitForParked();
-    ThrowingThread otherThread = new ThrowingThread(false, null);
+    ThrowingThread otherThread = startThrowingThread(false, null);
     otherThread.waitForParked();
 
     startThread(() -> executor.execute(() -> {
@@ -767,74 +666,186 @@ public class SupplementalGuardedExecutorTest extends TestCase {
       otherThread.setGuardReturns(true);
     }));
 
-    assertSame(thrown, otherThread.checkCaught(false));
-    Throwable caught = thread.checkCaught(true);
-    assertEquals(CancellationException.class, caught.getClass());
-    assertSame(thrown, caught.getCause());
+    otherThread.assertTaskNotExecuted();
+    otherThread.assertCaughtAtEnd(thrown);
+    thread.assertTaskExecuted();
+    thread.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
-  private class ThrowingThread {
+  private TestingThread<Void> startTestingThread(String name, VoidThreadBody body) {
+    return startTestingThread(name, () -> {
+      body.run();
+      return null;
+    });
+  }
 
-    private final Checkpoint finished = new Checkpoint();
-    private final Thread thread;
-    private volatile BooleanSupplier guard;
-    private volatile Throwable caught;
-    private volatile boolean taskExecuted;
+  private <T> TestingThread<T> startTestingThread(String name, ThreadBody<T> body) {
+    TestingThread<T> thread = new TestingThread<>(name, body);
+    thread.setDaemon(true);
+    thread.start();
+    return thread;
+  }
 
-    ThrowingThread(boolean initialGuardValue, Throwable thrownFromTask) {
-      this(() -> initialGuardValue, thrownFromTask);
+  private void pause(String name) {
+    CountDownLatch checkpoint = ((TestingThread<?>) Thread.currentThread()).checkpoint(name);
+    interruptless(checkpoint::await);
+  }
+
+  private void arrive(String name) {
+    ((TestingThread<?>) Thread.currentThread()).checkpoint(name).countDown();
+  }
+
+  private class TestingThread<T> extends Thread {
+
+    private final ConcurrentMap<String, CountDownLatch> checkpoints = new ConcurrentHashMap<>();
+    private final ThreadBody<T> body;
+    private T returnedValue;
+    private Throwable caughtAtEnd;
+    private boolean interruptedAtEnd;
+
+    TestingThread(String name, ThreadBody<T> body) {
+      super(name);
+      this.body = requireNonNull(body);
     }
 
-    ThrowingThread(Throwable thrownFromGuard, Throwable thrownFromTask) {
-      this(() -> {
-        throwUnchecked(thrownFromGuard);
-        return false;
-      }, thrownFromTask);
+    @Override
+    public final void run() {
+      try {
+        returnedValue = body.run();
+      } catch (Throwable throwable) {
+        caughtAtEnd = throwable;
+      } finally {
+        interruptedAtEnd = Thread.interrupted();
+      }
     }
 
-    ThrowingThread(BooleanSupplier initialGuard, Throwable thrownFromTask) {
-      this.guard = initialGuard;
-      thread = startThread(() -> {
-        try {
-          executor.executeWhen(() -> this.guard.getAsBoolean(), () -> {
-            taskExecuted = true;
-            throwUnchecked(thrownFromTask);
-          });
-        } catch (Throwable throwable) {
-          caught = throwable;
-        } finally {
-          finished.go();
-        }
-      });
+    private CountDownLatch checkpoint(String name) {
+      return checkpoints.computeIfAbsent(name, key -> new CountDownLatch(1));
     }
 
-    void setGuardReturns(boolean value) {
-      this.guard = () -> value;
+    void checkArrived(String name) throws InterruptedException {
+      assertTrue("stopped at " + name + " more than 100ms",
+          checkpoint(name).await(100, TimeUnit.MILLISECONDS));
     }
 
-    void setGuardThrows(Throwable thrown) {
-      this.guard = () -> {
-        throwUnchecked(thrown);
-        return false;
-      };
+    void unpause(String name) {
+      checkpoint(name).countDown();
     }
 
-    Throwable checkCaught(boolean expectTaskExecuted) throws InterruptedException {
-      finished.check();
-      assertEquals("whether task executed", expectTaskExecuted, taskExecuted);
-      return caught;
+    void assertReturnedValue(T expectedValue) throws InterruptedException {
+      waitForExited();
+      assertEquals("expected returned value", expectedValue, returnedValue);
+    }
+
+    void assertNothingCaughtAtEnd() throws InterruptedException {
+      waitForExited();
+      if (caughtAtEnd != null) {
+        fail("should not have thrown anything but threw " + caughtAtEnd);
+      }
+    }
+
+    void assertCaughtAtEnd(Throwable expectedThrowable) throws InterruptedException {
+      waitForExited();
+      assertSame("expected to be thrown", expectedThrowable, caughtAtEnd);
+    }
+
+    void assertCaughtAtEnd(Class<? extends Throwable> expectedClass) throws InterruptedException {
+      waitForExited();
+      assertNotNull("expected something to be thrown", caughtAtEnd);
+      assertEquals("expected class", expectedClass, caughtAtEnd.getClass());
+    }
+
+    void assertCaughtAtEnd(Class<? extends Throwable> expectedClass, Throwable expectedCause)
+        throws InterruptedException {
+      waitForExited();
+      assertNotNull("expected something to be thrown", caughtAtEnd);
+      assertEquals("expected class", expectedClass, caughtAtEnd.getClass());
+      assertSame("expected cause", expectedCause, caughtAtEnd.getCause());
+    }
+
+    void assertNotInterruptedAtEnd() throws InterruptedException {
+      waitForExited();
+      assertFalse("interrupt status should be cleared but is set", interruptedAtEnd);
+    }
+
+    void assertInterruptedAtEnd() throws InterruptedException {
+      waitForExited();
+      assertTrue("interrupt status should be set but is not", interruptedAtEnd);
     }
 
     void waitForParked() {
-      yieldUntilParked(thread);
+      yieldUntil(
+          () -> LockSupport.getBlocker(this) == executor,
+          () -> "thread not parked in executor");
+    }
+
+    void waitForExited() throws InterruptedException {
+      join(100);
+      assertFalse("thread is still running", isAlive());
     }
 
   }
 
-  private void yieldUntilParked(Thread thread) {
-    yieldUntil(
-        () -> LockSupport.getBlocker(thread) == executor,
-        () -> "thread not parked in executor");
+  private ThrowingThread startThrowingThread(boolean initialGuardValue, Throwable thrownFromTask) {
+    return startThrowingThread(() -> initialGuardValue, thrownFromTask);
+  }
+
+  private ThrowingThread startThrowingThread(Throwable thrownFromGuard, Throwable thrownFromTask) {
+    return startThrowingThread(() -> {
+      throwUnchecked(thrownFromGuard);
+      return false;
+    }, thrownFromTask);
+  }
+
+  private ThrowingThread startThrowingThread(BooleanSupplier initialGuard, Throwable thrownFromTask) {
+    AtomicReference<BooleanSupplier> guard = new AtomicReference<>(initialGuard);
+    AtomicBoolean taskExecuted = new AtomicBoolean();
+    ThreadBody<Void> body = () -> {
+      executor.executeWhen(() -> guard.get().getAsBoolean(), () -> {
+        taskExecuted.set(true);
+        throwUnchecked(thrownFromTask);
+      });
+      return null;
+    };
+    ThrowingThread thread = new ThrowingThread(guard, taskExecuted, body);
+    thread.setDaemon(true);
+    thread.start();
+    return thread;
+  }
+
+  private class ThrowingThread extends TestingThread<Void> {
+
+    private final AtomicReference<BooleanSupplier> guard;
+    private final AtomicBoolean taskExecuted;
+
+    ThrowingThread(AtomicReference<BooleanSupplier> guard,
+        AtomicBoolean taskExecuted, ThreadBody<Void> body) {
+      super("ThrowingThread", body);
+      this.guard = guard;
+      this.taskExecuted = taskExecuted;
+    }
+
+    void setGuardReturns(boolean value) {
+      guard.set(() -> value);
+    }
+
+    void setGuardThrows(Throwable thrown) {
+      guard.set(() -> {
+        throwUnchecked(thrown);
+        return false;
+      });
+    }
+
+    void assertTaskExecuted() throws InterruptedException {
+      waitForExited();
+      assertTrue("task should have executed", taskExecuted.get());
+    }
+
+    void assertTaskNotExecuted() throws InterruptedException {
+      waitForExited();
+      assertFalse("task should not have executed", taskExecuted.get());
+    }
+
   }
 
   private static void throwUnchecked(Throwable throwable) {
@@ -845,6 +856,16 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     } else if (throwable != null) {
       throw new AssertionError(throwable);
     }
+  }
+
+  @FunctionalInterface
+  private interface ThreadBody<T> {
+    T run() throws InterruptedException, TimeoutException;
+  }
+
+  @FunctionalInterface
+  private interface VoidThreadBody {
+    void run() throws InterruptedException, TimeoutException;
   }
 
   @FunctionalInterface
@@ -872,13 +893,6 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     interruptless(() -> Thread.sleep(10));
   }
 
-  private void waitForQueueLength(int expectedLength) {
-    yieldUntil(
-        () -> executor.getQueueLength() == expectedLength,
-        () -> String.format("expected queue length %d but was %d",
-            expectedLength, executor.getQueueLength()));
-  }
-
   private static void yieldUntil(BooleanSupplier condition, Supplier<String> message) {
     long start = System.nanoTime();
     while (!condition.getAsBoolean()) {
@@ -887,25 +901,6 @@ public class SupplementalGuardedExecutorTest extends TestCase {
       }
       Thread.yield();
     }
-  }
-
-  private static class Checkpoint {
-
-    private final CountDownLatch latch = new CountDownLatch(1);
-
-    void go() {
-      latch.countDown();
-    }
-
-    void stop() {
-      interruptless(latch::await);
-    }
-
-    void check() throws InterruptedException {
-      assertTrue("stopped at checkpoint more than 100ms",
-          latch.await(100, TimeUnit.MILLISECONDS));
-    }
-
   }
 
 }
