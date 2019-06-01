@@ -928,9 +928,9 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 <span class="fc bfc" id="L928" title="All 2 branches covered.">          if (addToQueue) {</span>
 <span class="fc" id="L929">            currentNode = addNewNodeAtTail(guard, runnable, supplier);</span>
 <span class="fc" id="L930">            final Node actualPrev = currentNode.prev;</span>
-<span class="pc bpc" id="L931" title="1 of 2 branches missed.">            if (actualPrev != tentativePrev) {</span>
-<span class="nc" id="L932">              executeTasksUpTo(actualPrev, tentativePrev);</span>
-<span class="nc" id="L933">              satisfied = guard.getAsBoolean();</span>
+<span class="fc bfc" id="L931" title="All 2 branches covered.">            if (actualPrev != tentativePrev) {</span>
+<span class="fc" id="L932">              executeTasksUpTo(actualPrev, tentativePrev);</span>
+<span class="fc" id="L933">              satisfied = guard.getAsBoolean();</span>
             }
 <span class="fc" id="L935">          } else {</span>
 <span class="fc" id="L936">            return NOT_EXECUTED_YET;</span>
@@ -938,8 +938,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         }
 
 <span class="fc bfc" id="L940" title="All 2 branches covered.">        if (satisfied) {</span>
-<span class="pc bpc" id="L941" title="1 of 2 branches missed.">          if (currentNode != null) {</span>
-<span class="nc" id="L942">            cancelBeforeExecuting(currentNode);</span>
+<span class="fc bfc" id="L941" title="All 2 branches covered.">          if (currentNode != null) {</span>
+<span class="fc" id="L942">            cancelBeforeExecuting(currentNode);</span>
           }
 <span class="fc" id="L944">          throwingWithoutExecuting = false;</span>
 <span class="fc bfc" id="L945" title="All 2 branches covered.">          if (runnable != null) {</span>
@@ -953,13 +953,13 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 <span class="fc" id="L953">          return currentNode;</span>
         }
       } finally {
-<span class="pc bpc" id="L956" title="1 of 4 branches missed.">        if (throwingWithoutExecuting &amp;&amp; currentNode != null) {</span>
-<span class="nc" id="L957">          cancelBecauseThrowing(currentNode);</span>
+<span class="fc bfc" id="L956" title="All 4 branches covered.">        if (throwingWithoutExecuting &amp;&amp; currentNode != null) {</span>
+<span class="fc" id="L957">          cancelBecauseThrowing(currentNode);</span>
         }
 <span class="fc" id="L959">        releaseLock(currentNode);</span>
       }
-<span class="pc bpc" id="L961" title="1 of 2 branches missed.">    } else if (getExclusiveOwnerThread() == Thread.currentThread()) {</span>
-<span class="nc" id="L962">      throw new RejectedExecutionException();</span>
+<span class="fc bfc" id="L961" title="All 2 branches covered.">    } else if (getExclusiveOwnerThread() == Thread.currentThread()) {</span>
+<span class="fc" id="L962">      throw new RejectedExecutionException();</span>
 <span class="fc bfc" id="L963" title="All 2 branches covered.">    } else if (addToQueue) {</span>
 <span class="fc" id="L964">      return addNewNodeAtTail(guard, runnable, supplier);</span>
     } else {
