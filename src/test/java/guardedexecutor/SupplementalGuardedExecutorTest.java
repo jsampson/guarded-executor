@@ -17,8 +17,11 @@
 package guardedexecutor;
 
 import com.google.common.collect.ImmutableSet;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -27,6 +30,8 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 import junit.framework.TestCase;
+
+import static java.util.Arrays.asList;
 
 /**
  * Supplemental tests for {@link GuardedExecutor}.
@@ -199,6 +204,110 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertNull(caughtException[0]);
     assertEquals(true, interruptStatus[0]);
     assertEquals("foo", returnedValue[0]);
+  }
+
+  public void testAdditionalTaskArrivesAfterTentativeTail() throws InterruptedException {
+    AtomicBoolean flag = new AtomicBoolean();
+    Checkpoint checkpoint1 = new Checkpoint();
+    Checkpoint checkpoint2 = new Checkpoint();
+    Checkpoint checkpoint3 = new Checkpoint();
+    List<String> list = new ArrayList<>();
+
+    startThread(() -> {
+      executor.executeWhen(() -> {
+        if (!flag.get()) {
+          checkpoint1.go();
+          checkpoint2.stop();
+        }
+        return flag.get();
+      }, () -> list.add("a"));
+      checkpoint3.go();
+    });
+
+    checkpoint1.check();
+
+    yieldUntilParked(startThread(() -> executor.execute(() -> {
+      flag.set(true);
+      list.add("b");
+    })));
+
+    assertEquals(1, executor.getQueueLength());
+    checkpoint2.go();
+    checkpoint3.check();
+
+    assertEquals(0, executor.getQueueLength());
+    assertEquals(asList("b", "a"), list);
+  }
+
+  public void testAdditionalTaskArrivesAfterTentativeTailAndThrows() throws InterruptedException {
+    AtomicBoolean flag = new AtomicBoolean();
+    Checkpoint checkpoint1 = new Checkpoint();
+    Checkpoint checkpoint2 = new Checkpoint();
+    Checkpoint checkpoint3 = new Checkpoint();
+    Checkpoint checkpoint4 = new Checkpoint();
+    Error thrown = new Error();
+    Throwable[] caught = {null, null};
+
+    startThread(() -> {
+      try {
+        executor.executeWhen(() -> {
+          checkpoint1.go();
+          checkpoint2.stop();
+          return false;
+        }, () -> {});
+      } catch (Throwable throwable) {
+        caught[0] = throwable;
+      }
+      checkpoint3.go();
+    });
+
+    checkpoint1.check();
+
+    yieldUntilParked(startThread(() -> {
+      try {
+        executor.execute(() -> {
+          throw thrown;
+        });
+      } catch (Throwable throwable) {
+        caught[1] = throwable;
+      }
+      checkpoint4.go();
+    }));
+
+    assertEquals(1, executor.getQueueLength());
+    checkpoint2.go();
+    checkpoint3.check();
+    checkpoint4.check();
+
+    assertEquals(0, executor.getQueueLength());
+
+    assertSame(thrown, caught[0]);
+
+    assertNotNull(caught[1]);
+    assertEquals(CancellationException.class, caught[1].getClass());
+    assertSame(thrown, caught[1].getCause());
+  }
+
+  public void testReentrantExecutionDisallowed() throws InterruptedException {
+    AtomicBoolean innerExecuted = new AtomicBoolean();
+    Checkpoint checkpoint = new Checkpoint();
+    Throwable[] caught = {null};
+
+    startThread(() -> {
+      try {
+        executor.execute(() -> {
+          executor.execute(() -> innerExecuted.set(true));
+        });
+      } catch (Throwable throwable) {
+        caught[0] = throwable;
+      }
+      checkpoint.go();
+    });
+
+    checkpoint.check();
+    assertFalse(innerExecuted.get());
+    assertNotNull(caught[0]);
+    assertEquals(RejectedExecutionException.class, caught[0].getClass());
   }
 
   public void testProceedTriggersMisbehavedGuard() throws InterruptedException {
