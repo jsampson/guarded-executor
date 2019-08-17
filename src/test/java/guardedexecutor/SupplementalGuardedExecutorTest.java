@@ -34,6 +34,7 @@ import java.util.function.Supplier;
 import junit.framework.TestCase;
 
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.joinUninterruptibly;
 import static guardedexecutor.TestingThread.arrive;
 import static guardedexecutor.TestingThread.pause;
 import static guardedexecutor.TestingThread.startTestingThread;
@@ -435,6 +436,113 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     assertEquals(false, executor.hasQueuedThread(waiter[2]));
 
     blocker.unpause("return");
+  }
+
+  /**
+   * A sequence of tasks carefully designed to cover all of the branches that
+   * are otherwise uncovered in {@code executeTasksFromHead}.
+   */
+  public void testExecuteTasksFromHeadEdgeCases() throws InterruptedException {
+    int[] turn = {-1};
+    List<String> list = new ArrayList<>();
+
+    TestingThread<String> thread1 = startTestingThread(() -> {
+      return executor.executeWhen(() -> turn[0] == 1, () -> {
+        list.add("1");
+        turn[0] = 3;
+        return "1 okay";
+      });
+    });
+    thread1.waitForParked(executor);
+
+    TestingThread<String> cancelled = startTestingThread(() -> {
+      return executor.executeWhen(() -> false, () -> {
+        list.add("cancelled");
+        return "cancelled okay";
+      });
+    });
+    cancelled.waitForParked(executor);
+
+    TestingThread<String> thread2a = startTestingThread(() -> {
+      Thread self = Thread.currentThread();
+      return executor.executeWhen(() -> {
+        if (turn[0] != 2) {
+          return false;
+        }
+        self.interrupt();
+        joinUninterruptibly(self);
+        throw new RuntimeException();
+      }, () -> {
+        list.add("2a");
+        return "2a okay";
+      });
+    });
+    thread2a.waitForParked(executor);
+
+    TestingThread<String> thread2b = startTestingThread(() -> {
+      Thread self = Thread.currentThread();
+      return executor.executeWhen(() -> {
+        if (turn[0] != 2) {
+          return false;
+        }
+        self.interrupt();
+        joinUninterruptibly(self);
+        return true;
+      }, () -> {
+        list.add("2b");
+        return "2b okay";
+      });
+    });
+    thread2b.waitForParked(executor);
+
+    TestingThread<String> thread2c = startTestingThread(() -> {
+      Thread self = Thread.currentThread();
+      return executor.executeWhen(() -> turn[0] == 2, () -> {
+        list.add("2c");
+        turn[0] = 1;
+        return "2c okay";
+      });
+    });
+    thread2c.waitForParked(executor);
+
+    TestingThread<String> primary = startTestingThread(() -> {
+      return executor.executeWhen(() -> {
+        if (turn[0] == -1) {
+          arrive("first time in guard");
+          pause("returning from guard");
+        }
+        return turn[0] == 3;
+      }, () -> {
+        list.add("primary");
+        return "primary okay";
+      });
+    });
+    primary.checkArrived("first time in guard");
+
+    TestingThread<String> satisfied = startTestingThread(() -> {
+      return executor.execute(() -> {
+        list.add("satisfied");
+        turn[0] = 2;
+        return "satisfied okay";
+      });
+    });
+    satisfied.waitForParked(executor);
+
+    cancelled.interrupt();
+    cancelled.waitForExited();
+
+    primary.unpause("returning from guard");
+    primary.waitForExited();
+
+    assertEquals(asList("satisfied", "2c", "1", "primary"), list);
+
+    thread1.assertReturnedValue("1 okay");
+    cancelled.assertCaughtAtEnd(InterruptedException.class);
+    thread2a.assertCaughtAtEnd(InterruptedException.class);
+    thread2b.assertCaughtAtEnd(InterruptedException.class);
+    thread2c.assertReturnedValue("2c okay");
+    primary.assertReturnedValue("primary okay");
+    satisfied.assertReturnedValue("satisfied okay");
   }
 
   public void testRunnableSupplierPassedAsRunnableWithoutParking() {
