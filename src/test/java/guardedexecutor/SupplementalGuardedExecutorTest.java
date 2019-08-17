@@ -448,7 +448,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
 
     TestingThread<String> thread1 = startTestingThread(() -> {
       return executor.executeWhen(() -> turn[0] == 1, () -> {
-        list.add("1");
+        list.add("1 on " + Thread.currentThread());
         turn[0] = 3;
         return "1 okay";
       });
@@ -498,7 +498,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     TestingThread<String> thread2c = startTestingThread(() -> {
       Thread self = Thread.currentThread();
       return executor.executeWhen(() -> turn[0] == 2, () -> {
-        list.add("2c");
+        list.add("2c on " + Thread.currentThread());
         turn[0] = 1;
         return "2c okay";
       });
@@ -513,7 +513,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
         }
         return turn[0] == 3;
       }, () -> {
-        list.add("primary");
+        list.add("primary on " + Thread.currentThread());
         return "primary okay";
       });
     });
@@ -521,7 +521,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
 
     TestingThread<String> satisfied = startTestingThread(() -> {
       return executor.execute(() -> {
-        list.add("satisfied");
+        list.add("satisfied on " + Thread.currentThread());
         turn[0] = 2;
         return "satisfied okay";
       });
@@ -534,7 +534,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     primary.unpause("returning from guard");
     primary.waitForExited();
 
-    assertEquals(asList("satisfied", "2c", "1", "primary"), list);
+    assertEquals(asList("satisfied", "2c", "1", "primary on " + primary), list);
 
     thread1.assertReturnedValue("1 okay");
     cancelled.assertCaughtAtEnd(InterruptedException.class);
