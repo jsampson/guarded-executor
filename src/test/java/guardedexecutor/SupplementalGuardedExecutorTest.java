@@ -724,13 +724,13 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     Error thrown = new Error();
     TestingThread<Void> thread = startThrowingThread(false, null);
     thread.waitForParked(executor);
-    setGuardThrows(thread, thrown);
-    //throwingGuards.get(thread).set(() -> {
-      //if (Thread.currentThread() != thread) {
-        //throwUnchecked(thrown);
-      //}
-      //return false;
-    //});
+    //setGuardThrows(thread, thrown);
+    throwingGuards.get(thread).set(() -> {
+      if (Thread.currentThread() != thread) {
+        throwUnchecked(thrown);
+      }
+      return false;
+    });
     TestingThread<Void> otherThread = startThrowingThread(true, null);
     assertTaskNotExecuted(otherThread);
     otherThread.assertCaughtAtEnd(thrown);
