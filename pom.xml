@@ -9,6 +9,28 @@
   <version>0.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
+  <profiles>
+    <profile>
+      <id>use-javac-source-and-target</id>
+      <activation>
+        <jdk>(,1.9)</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+      </properties>
+    </profile>
+    <profile>
+      <id>use-javac-release</id>
+      <activation>
+        <jdk>[1.9,)</jdk>
+      </activation>
+      <properties>
+        <maven.compiler.release>8</maven.compiler.release>
+      </properties>
+    </profile>
+  </profiles>
+
   <build>
     <plugins>
       <plugin>
@@ -17,7 +39,6 @@
         <version>3.8.1</version>
         <configuration>
           <encoding>UTF-8</encoding>
-          <release>8</release>
           <fork>true</fork> <!-- enables usage of compilerArgs -->
           <showWarnings>true</showWarnings>
           <failOnWarning>true</failOnWarning>
