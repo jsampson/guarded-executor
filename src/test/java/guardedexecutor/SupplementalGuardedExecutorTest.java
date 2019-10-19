@@ -42,6 +42,9 @@ import static guardedexecutor.TestingThread.yieldUntil;
 import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
 
+import java.lang.reflect.*;
+import java.util.*;
+
 /**
  * Supplemental tests for {@link GuardedExecutor}.
  *
@@ -51,6 +54,41 @@ import static java.util.Objects.requireNonNull;
  * @author Justin T. Sampson
  */
 public class SupplementalGuardedExecutorTest extends TestCase {
+
+  public static void main(String[] args) throws Exception {
+    int limit = Integer.parseInt(args[0]);
+    Method[] allMethods = SupplementalGuardedExecutorTest.class.getMethods();
+    List<Method> testMethods = new ArrayList<>();
+    for (Method method : allMethods) {
+      if (method.getName().startsWith("test") && !method.getName().equals("testExecutionMonitoringMethods")) {
+        testMethods.add(method);
+      }
+    }
+    Random random = new Random();
+    Map<String, Integer> failures = new TreeMap<>();
+    for (int count = 1; count <= limit; count++) {
+      if (count % 1000 == 0) {
+        System.err.println("> " + count + "...");
+      }
+      int index = random.nextInt(testMethods.size());
+      Method method = testMethods.get(index);
+      SupplementalGuardedExecutorTest test = new SupplementalGuardedExecutorTest();
+      test.setUp();
+      try {
+        method.invoke(test);
+      } catch (Throwable throwable) {
+        if (throwable instanceof InvocationTargetException) {
+          throwable = throwable.getCause();
+        }
+        System.err.println("FAILURE " + method.getName() + " (" + count + ") " + throwable.getMessage());
+        failures.put(method.getName(), failures.getOrDefault(method.getName(), 0) + 1);
+      }
+    }
+    System.out.println("OFFENDERS:");
+    for (String methodName : failures.keySet()) {
+      System.out.println("- " + methodName + ": " + failures.get(methodName));
+    }
+  }
 
   private volatile GuardedExecutor executor;
 
@@ -443,6 +481,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
    * are otherwise uncovered in {@code executeTasksFromHead}.
    */
   public void testExecuteTasksFromHeadEdgeCases() throws InterruptedException {
+    //for (int i = 0; i < 1000; i++) {
     int[] turn = {-1};
     List<String> list = new ArrayList<>();
 
@@ -543,6 +582,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     thread2c.assertReturnedValue("2c okay");
     primary.assertReturnedValue("primary okay");
     satisfied.assertReturnedValue("satisfied okay");
+    //}
   }
 
   public void testRunnableSupplierPassedAsRunnableWithoutParking() {
@@ -680,15 +720,23 @@ public class SupplementalGuardedExecutorTest extends TestCase {
   }
 
   public void testThrowingErrorFromGuardInOtherThreadBeforeParking() throws Exception {
+    //for (int i = 0; i < 10000; i++) {
     Error thrown = new Error();
     TestingThread<Void> thread = startThrowingThread(false, null);
     thread.waitForParked(executor);
     setGuardThrows(thread, thrown);
+    //throwingGuards.get(thread).set(() -> {
+      //if (Thread.currentThread() != thread) {
+        //throwUnchecked(thrown);
+      //}
+      //return false;
+    //});
     TestingThread<Void> otherThread = startThrowingThread(true, null);
     assertTaskNotExecuted(otherThread);
     otherThread.assertCaughtAtEnd(thrown);
     assertTaskNotExecuted(thread);
     thread.assertCaughtAtEnd(CancellationException.class, thrown);
+    //}
   }
 
   public void testThrowingExceptionFromTaskInOtherThreadBeforeParking() throws Exception {

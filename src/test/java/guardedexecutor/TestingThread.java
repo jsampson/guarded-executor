@@ -47,7 +47,7 @@ class TestingThread<T> extends Thread {
     void run() throws InterruptedException, TimeoutException;
   }
 
-  static <T> TestingThread<T> startTestingThread( ThreadBody<T> body) {
+  static <T> TestingThread<T> startTestingThread(ThreadBody<T> body) {
     TestingThread<T> thread = new TestingThread<>(body);
     thread.setDaemon(true);
     thread.start();
