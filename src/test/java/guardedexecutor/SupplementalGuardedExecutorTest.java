@@ -55,11 +55,19 @@ import java.util.*;
  */
 public class SupplementalGuardedExecutorTest extends TestCase {
 
+  /**
+   * A harness for identifying flaky tests. Tests from this class are selected
+   * randomly to be run over and over again and failures are counted to be
+   * reported at the end.
+   *
+   * @see <a href="https://github.com/jsampson/guarded-executor/issues/3">Issue #3</a>
+   */
   public static void main(String[] args) throws Exception {
-    int limit = Integer.parseInt(args[0]);
+    int limit = args.length == 0 ? 5_000 : Integer.parseInt(args[0]);
     Method[] allMethods = SupplementalGuardedExecutorTest.class.getMethods();
     List<Method> testMethods = new ArrayList<>();
     for (Method method : allMethods) {
+      // testExecutionMonitoringMethods depends on the thread name so it fails if run more than once.
       if (method.getName().startsWith("test") && !method.getName().equals("testExecutionMonitoringMethods")) {
         testMethods.add(method);
       }
@@ -80,13 +88,17 @@ public class SupplementalGuardedExecutorTest extends TestCase {
         if (throwable instanceof InvocationTargetException) {
           throwable = throwable.getCause();
         }
-        System.err.println("FAILURE " + method.getName() + " (" + count + ") " + throwable.getMessage());
+        System.err.println("* " + method.getName() + " - " + throwable.getMessage());
         failures.put(method.getName(), failures.getOrDefault(method.getName(), 0) + 1);
       }
     }
-    System.out.println("OFFENDERS:");
-    for (String methodName : failures.keySet()) {
-      System.out.println("- " + methodName + ": " + failures.get(methodName));
+    if (failures.isEmpty()) {
+      System.out.println("ALL CLEAR!");
+    } else {
+      System.out.println("FAILURES:");
+      for (String methodName : failures.keySet()) {
+        System.out.println("- " + methodName + ": " + failures.get(methodName));
+      }
     }
   }
 
@@ -481,7 +493,6 @@ public class SupplementalGuardedExecutorTest extends TestCase {
    * are otherwise uncovered in {@code executeTasksFromHead}.
    */
   public void testExecuteTasksFromHeadEdgeCases() throws InterruptedException {
-    //for (int i = 0; i < 1000; i++) {
     int[] turn = {-1};
     List<String> list = new ArrayList<>();
 
@@ -582,7 +593,6 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     thread2c.assertReturnedValue("2c okay");
     primary.assertReturnedValue("primary okay");
     satisfied.assertReturnedValue("satisfied okay");
-    //}
   }
 
   public void testRunnableSupplierPassedAsRunnableWithoutParking() {
