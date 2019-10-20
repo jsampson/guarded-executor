@@ -675,8 +675,8 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   @Override
   public final String toString() {
 <span class="fc" id="L677">    final Thread owner = getExecutingThread();</span>
-<span class="fc bfc" id="L678" title="All 2 branches covered.">    return super.toString()</span>
-<span class="fc" id="L679">        + (owner == null ? &quot;[Not executing]&quot; : &quot;[Executing in thread &quot; + owner.getName() + &quot;]&quot;);</span>
+<span class="fc" id="L678">    return super.toString()</span>
+<span class="fc bfc" id="L679" title="All 2 branches covered.">        + (owner == null ? &quot;[Not executing]&quot; : &quot;[Executing in thread &quot; + owner.getName() + &quot;]&quot;);</span>
   }
 
   // ===============================================================================================
@@ -1048,9 +1048,9 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     START_OVER:
     while (true) {
       final Node startingPoint;
-<span class="pc bpc" id="L1051" title="1 of 2 branches missed.">      if (priorLast != null) {</span>
-<span class="nc" id="L1052">        startingPoint = priorLast.next;</span>
-<span class="nc" id="L1053">        priorLast = null;</span>
+<span class="fc bfc" id="L1051" title="All 2 branches covered.">      if (priorLast != null) {</span>
+<span class="fc" id="L1052">        startingPoint = priorLast.next;</span>
+<span class="fc" id="L1053">        priorLast = null;</span>
       } else {
 <span class="fc" id="L1055">        startingPoint = runningHead;</span>
       }
@@ -1067,13 +1067,13 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
           try {
 <span class="fc bfc" id="L1068" title="All 4 branches covered.">            satisfied = (guard == null || guard.getAsBoolean());</span>
 <span class="fc" id="L1069">          } catch (Throwable t) {</span>
-<span class="pc bpc" id="L1070" title="1 of 2 branches missed.">            if (beginExecuting(curr)) {</span>
+<span class="fc bfc" id="L1070" title="All 2 branches covered.">            if (beginExecuting(curr)) {</span>
 <span class="fc" id="L1071">              endExecuting(curr, null, t);</span>
             }
 <span class="fc bfc" id="L1073" title="All 2 branches covered.">            if (t instanceof Error) {</span>
 <span class="fc" id="L1074">              throw t;</span>
             } else {
-<span class="pc bpc" id="L1076" title="1 of 2 branches missed.">              if (curr == runningHead) {</span>
+<span class="fc bfc" id="L1076" title="All 2 branches covered.">              if (curr == runningHead) {</span>
 <span class="fc" id="L1077">                runningHead = curr.next;</span>
               }
 <span class="fc" id="L1079">              continue NEXT_NODE;</span>
@@ -1083,10 +1083,10 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 <span class="fc" id="L1083">            skipped = true;</span>
 <span class="fc" id="L1084">            continue NEXT_NODE;</span>
           }
-<span class="pc bpc" id="L1086" title="1 of 2 branches missed.">          if (curr == runningHead) {</span>
+<span class="fc bfc" id="L1086" title="All 2 branches covered.">          if (curr == runningHead) {</span>
 <span class="fc" id="L1087">            runningHead = curr.next;</span>
           }
-<span class="pc bpc" id="L1089" title="1 of 2 branches missed.">          if (beginExecuting(curr)) {</span>
+<span class="fc bfc" id="L1089" title="All 2 branches covered.">          if (beginExecuting(curr)) {</span>
 <span class="fc" id="L1090">            Object returned = null;</span>
 <span class="fc" id="L1091">            Throwable thrown = null;</span>
             try {
@@ -1102,10 +1102,10 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
             } finally {
 <span class="fc" id="L1103">              endExecuting(curr, returned, thrown);</span>
             }
-<span class="pc bpc" id="L1105" title="1 of 2 branches missed.">            if (skipped) {</span>
+<span class="fc bfc" id="L1105" title="All 2 branches covered.">            if (skipped) {</span>
               // At least one earlier guard was unsatisfied before, but may be satisfied now that
               // this task has been run, so we have to go back and reevaluate it.
-<span class="nc" id="L1108">              continue START_OVER;</span>
+<span class="fc" id="L1108">              continue START_OVER;</span>
             }
           }
 <span class="fc" id="L1111">        } else {</span>
@@ -1130,7 +1130,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 <span class="fc" id="L1130">      next = curr.next;</span>
 <span class="fc" id="L1131">      curr.next = null;</span>
 
-<span class="pc bpc" id="L1133" title="1 of 2 branches missed.">      if (curr.status == WAITING) {</span>
+<span class="fc bfc" id="L1133" title="All 2 branches covered.">      if (curr.status == WAITING) {</span>
 <span class="fc" id="L1134">        curr.prev = prev;</span>
 <span class="fc" id="L1135">        prev = curr;</span>
       }
