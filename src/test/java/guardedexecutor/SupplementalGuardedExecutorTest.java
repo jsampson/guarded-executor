@@ -34,12 +34,16 @@ import java.util.function.Supplier;
 import junit.framework.TestCase;
 
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static com.google.common.util.concurrent.Uninterruptibles.joinUninterruptibly;
 import static guardedexecutor.TestingThread.arrive;
 import static guardedexecutor.TestingThread.pause;
 import static guardedexecutor.TestingThread.startTestingThread;
 import static guardedexecutor.TestingThread.yieldUntil;
 import static java.util.Arrays.asList;
 import static java.util.Objects.requireNonNull;
+
+import java.lang.reflect.*;
+import java.util.*;
 
 /**
  * Supplemental tests for {@link GuardedExecutor}.
@@ -50,6 +54,53 @@ import static java.util.Objects.requireNonNull;
  * @author Justin T. Sampson
  */
 public class SupplementalGuardedExecutorTest extends TestCase {
+
+  /**
+   * A harness for identifying flaky tests. Tests from this class are selected
+   * randomly to be run over and over again and failures are counted to be
+   * reported at the end.
+   *
+   * @see <a href="https://github.com/jsampson/guarded-executor/issues/3">Issue #3</a>
+   */
+  public static void main(String[] args) throws Exception {
+    int limit = args.length == 0 ? 5_000 : Integer.parseInt(args[0]);
+    Method[] allMethods = SupplementalGuardedExecutorTest.class.getMethods();
+    List<Method> testMethods = new ArrayList<>();
+    for (Method method : allMethods) {
+      // testExecutionMonitoringMethods depends on the thread name so it fails if run more than once.
+      if (method.getName().startsWith("test") && !method.getName().equals("testExecutionMonitoringMethods")) {
+        testMethods.add(method);
+      }
+    }
+    Random random = new Random();
+    Map<String, Integer> failures = new TreeMap<>();
+    for (int count = 1; count <= limit; count++) {
+      if (count % 1000 == 0) {
+        System.err.println("> " + count + "...");
+      }
+      int index = random.nextInt(testMethods.size());
+      Method method = testMethods.get(index);
+      SupplementalGuardedExecutorTest test = new SupplementalGuardedExecutorTest();
+      test.setUp();
+      try {
+        method.invoke(test);
+      } catch (Throwable throwable) {
+        if (throwable instanceof InvocationTargetException) {
+          throwable = throwable.getCause();
+        }
+        System.err.println("* " + method.getName() + " - " + throwable.getMessage());
+        failures.put(method.getName(), failures.getOrDefault(method.getName(), 0) + 1);
+      }
+    }
+    if (failures.isEmpty()) {
+      System.out.println("ALL CLEAR!");
+    } else {
+      System.out.println("FAILURES:");
+      for (String methodName : failures.keySet()) {
+        System.out.println("- " + methodName + ": " + failures.get(methodName));
+      }
+    }
+  }
 
   private volatile GuardedExecutor executor;
 
@@ -437,6 +488,113 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     blocker.unpause("return");
   }
 
+  /**
+   * A sequence of tasks carefully designed to cover all of the branches that
+   * are otherwise uncovered in {@code executeTasksFromHead}.
+   */
+  public void testExecuteTasksFromHeadEdgeCases() throws InterruptedException {
+    int[] turn = {-1};
+    List<String> list = new ArrayList<>();
+
+    TestingThread<String> thread1 = startTestingThread(() -> {
+      return executor.executeWhen(() -> turn[0] == 1, () -> {
+        list.add("1");
+        turn[0] = 3;
+        return "1 okay";
+      });
+    });
+    thread1.waitForParked(executor);
+
+    TestingThread<String> cancelled = startTestingThread(() -> {
+      return executor.executeWhen(() -> false, () -> {
+        list.add("cancelled");
+        return "cancelled okay";
+      });
+    });
+    cancelled.waitForParked(executor);
+
+    TestingThread<String> thread2a = startTestingThread(() -> {
+      Thread self = Thread.currentThread();
+      return executor.executeWhen(() -> {
+        if (turn[0] != 2) {
+          return false;
+        }
+        self.interrupt();
+        joinUninterruptibly(self);
+        throw new RuntimeException();
+      }, () -> {
+        list.add("2a");
+        return "2a okay";
+      });
+    });
+    thread2a.waitForParked(executor);
+
+    TestingThread<String> thread2b = startTestingThread(() -> {
+      Thread self = Thread.currentThread();
+      return executor.executeWhen(() -> {
+        if (turn[0] != 2) {
+          return false;
+        }
+        self.interrupt();
+        joinUninterruptibly(self);
+        return true;
+      }, () -> {
+        list.add("2b");
+        return "2b okay";
+      });
+    });
+    thread2b.waitForParked(executor);
+
+    TestingThread<String> thread2c = startTestingThread(() -> {
+      Thread self = Thread.currentThread();
+      return executor.executeWhen(() -> turn[0] == 2, () -> {
+        list.add("2c");
+        turn[0] = 1;
+        return "2c okay";
+      });
+    });
+    thread2c.waitForParked(executor);
+
+    TestingThread<String> primary = startTestingThread(() -> {
+      return executor.executeWhen(() -> {
+        if (turn[0] == -1) {
+          arrive("first time in guard");
+          pause("returning from guard");
+        }
+        return turn[0] == 3;
+      }, () -> {
+        list.add("primary");
+        return "primary okay";
+      });
+    });
+    primary.checkArrived("first time in guard");
+
+    TestingThread<String> satisfied = startTestingThread(() -> {
+      return executor.execute(() -> {
+        list.add("satisfied");
+        turn[0] = 2;
+        return "satisfied okay";
+      });
+    });
+    satisfied.waitForParked(executor);
+
+    cancelled.interrupt();
+    cancelled.waitForExited();
+
+    primary.unpause("returning from guard");
+    primary.waitForExited();
+
+    assertEquals(asList("satisfied", "2c", "1", "primary"), list);
+
+    thread1.assertReturnedValue("1 okay");
+    cancelled.assertCaughtAtEnd(InterruptedException.class);
+    thread2a.assertCaughtAtEnd(InterruptedException.class);
+    thread2b.assertCaughtAtEnd(InterruptedException.class);
+    thread2c.assertReturnedValue("2c okay");
+    primary.assertReturnedValue("primary okay");
+    satisfied.assertReturnedValue("satisfied okay");
+  }
+
   public void testRunnableSupplierPassedAsRunnableWithoutParking() {
     RunnableSupplier task = new RunnableSupplier();
     executor.execute((Runnable) task);
@@ -563,7 +721,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     RuntimeException thrown = new RuntimeException();
     TestingThread<Void> thread = startThrowingThread(false, null);
     thread.waitForParked(executor);
-    setGuardThrows(thread, thrown);
+    setGuardThrowsInOtherThread(thread, thrown);
     TestingThread<Void> otherThread = startThrowingThread(true, null);
     assertTaskExecuted(otherThread);
     otherThread.assertNothingCaughtAtEnd();
@@ -575,7 +733,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     Error thrown = new Error();
     TestingThread<Void> thread = startThrowingThread(false, null);
     thread.waitForParked(executor);
-    setGuardThrows(thread, thrown);
+    setGuardThrowsInOtherThread(thread, thrown);
     TestingThread<Void> otherThread = startThrowingThread(true, null);
     assertTaskNotExecuted(otherThread);
     otherThread.assertCaughtAtEnd(thrown);
@@ -587,7 +745,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     RuntimeException thrown = new RuntimeException();
     TestingThread<Void> thread = startThrowingThread(false, thrown);
     thread.waitForParked(executor);
-    setGuardReturns(thread, true);
+    setGuardReturnsTrueInOtherThread(thread);
     TestingThread<Void> otherThread = startThrowingThread(true, null);
     assertTaskExecuted(otherThread);
     otherThread.assertNothingCaughtAtEnd();
@@ -599,7 +757,7 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     Error thrown = new Error();
     TestingThread<Void> thread = startThrowingThread(false, thrown);
     thread.waitForParked(executor);
-    setGuardReturns(thread, true);
+    setGuardReturnsTrueInOtherThread(thread);
     TestingThread<Void> otherThread = startThrowingThread(true, null);
     assertTaskNotExecuted(otherThread);
     otherThread.assertCaughtAtEnd(thrown);
@@ -720,6 +878,23 @@ public class SupplementalGuardedExecutorTest extends TestCase {
   private void setGuardThrows(TestingThread<Void> thread, Throwable thrown) {
     throwingGuards.get(thread).set(() -> {
       throwUnchecked(thrown);
+      return false;
+    });
+  }
+
+  private void setGuardReturnsTrueInOtherThread(TestingThread<Void> thread) {
+    // This is a bit sketchy, but prevents the thread from executing its own task if
+    // it unparks spuriously even after having having returned from waitForParked().
+    throwingGuards.get(thread).set(() -> Thread.currentThread() != thread);
+  }
+
+  private void setGuardThrowsInOtherThread(TestingThread<Void> thread, Throwable thrown) {
+    throwingGuards.get(thread).set(() -> {
+      if (Thread.currentThread() != thread) {
+        // This is a bit sketchy, but prevents the thread from executing its own task if
+        // it unparks spuriously even after having having returned from waitForParked().
+        throwUnchecked(thrown);
+      }
       return false;
     });
   }
