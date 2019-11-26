@@ -717,54 +717,6 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     thread.assertCaughtAtEnd(thrown);
   }
 
-  public void testThrowingExceptionFromGuardInOtherThreadBeforeParking() throws Exception {
-    RuntimeException thrown = new RuntimeException();
-    TestingThread<Void> thread = startThrowingThread(false, null);
-    thread.waitForParked(executor);
-    setGuardThrowsInOtherThread(thread, thrown);
-    TestingThread<Void> otherThread = startThrowingThread(true, null);
-    assertTaskExecuted(otherThread);
-    otherThread.assertNothingCaughtAtEnd();
-    assertTaskNotExecuted(thread);
-    thread.assertCaughtAtEnd(CancellationException.class, thrown);
-  }
-
-  public void testThrowingErrorFromGuardInOtherThreadBeforeParking() throws Exception {
-    Error thrown = new Error();
-    TestingThread<Void> thread = startThrowingThread(false, null);
-    thread.waitForParked(executor);
-    setGuardThrowsInOtherThread(thread, thrown);
-    TestingThread<Void> otherThread = startThrowingThread(true, null);
-    assertTaskNotExecuted(otherThread);
-    otherThread.assertCaughtAtEnd(thrown);
-    assertTaskNotExecuted(thread);
-    thread.assertCaughtAtEnd(CancellationException.class, thrown);
-  }
-
-  public void testThrowingExceptionFromTaskInOtherThreadBeforeParking() throws Exception {
-    RuntimeException thrown = new RuntimeException();
-    TestingThread<Void> thread = startThrowingThread(false, thrown);
-    thread.waitForParked(executor);
-    setGuardReturnsTrueInOtherThread(thread);
-    TestingThread<Void> otherThread = startThrowingThread(true, null);
-    assertTaskExecuted(otherThread);
-    otherThread.assertNothingCaughtAtEnd();
-    assertTaskExecuted(thread);
-    thread.assertCaughtAtEnd(CancellationException.class, thrown);
-  }
-
-  public void testThrowingErrorFromTaskInOtherThreadBeforeParking() throws Exception {
-    Error thrown = new Error();
-    TestingThread<Void> thread = startThrowingThread(false, thrown);
-    thread.waitForParked(executor);
-    setGuardReturnsTrueInOtherThread(thread);
-    TestingThread<Void> otherThread = startThrowingThread(true, null);
-    assertTaskNotExecuted(otherThread);
-    otherThread.assertCaughtAtEnd(thrown);
-    assertTaskExecuted(thread);
-    thread.assertCaughtAtEnd(CancellationException.class, thrown);
-  }
-
   public void testThrowingExceptionFromGuardInOtherThreadAfterParking() throws Exception {
     RuntimeException thrown = new RuntimeException();
     TestingThread<Void> thread = startThrowingThread(false, null);
@@ -878,23 +830,6 @@ public class SupplementalGuardedExecutorTest extends TestCase {
   private void setGuardThrows(TestingThread<Void> thread, Throwable thrown) {
     throwingGuards.get(thread).set(() -> {
       throwUnchecked(thrown);
-      return false;
-    });
-  }
-
-  private void setGuardReturnsTrueInOtherThread(TestingThread<Void> thread) {
-    // This is a bit sketchy, but prevents the thread from executing its own task if
-    // it unparks spuriously even after having having returned from waitForParked().
-    throwingGuards.get(thread).set(() -> Thread.currentThread() != thread);
-  }
-
-  private void setGuardThrowsInOtherThread(TestingThread<Void> thread, Throwable thrown) {
-    throwingGuards.get(thread).set(() -> {
-      if (Thread.currentThread() != thread) {
-        // This is a bit sketchy, but prevents the thread from executing its own task if
-        // it unparks spuriously even after having having returned from waitForParked().
-        throwUnchecked(thrown);
-      }
       return false;
     });
   }
