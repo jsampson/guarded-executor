@@ -29,7 +29,8 @@ public final class ConcurrentPerfOptions {
       REENTRANT_LOCK_FAIR,
       GUAVA_MONITOR,
       GUAVA_MONITOR_FAIR,
-      GUARDED_EXECUTOR
+      GUARDED_EXECUTOR,
+      BARGING_GUARDED_EXECUTOR
   };
 
   /** The amount of simulated work to do between operations in each test thread. */

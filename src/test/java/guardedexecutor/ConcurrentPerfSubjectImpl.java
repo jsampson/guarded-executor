@@ -57,6 +57,12 @@ public enum ConcurrentPerfSubjectImpl {
     @Override public ConcurrentPerfSubject newSubject(int capacity) {
       return new GuardedExecutorPerfSubject(capacity);
     }
+  },
+
+  BARGING_GUARDED_EXECUTOR {
+    @Override public ConcurrentPerfSubject newSubject(int capacity) {
+      return new BargingGuardedExecutorPerfSubject(capacity);
+    }
   };
 
   public abstract ConcurrentPerfSubject newSubject(int capacity);
@@ -199,6 +205,32 @@ public enum ConcurrentPerfSubjectImpl {
     GuardedExecutorPerfSubject(int capacity) {
       super(capacity);
       executor = new GuardedExecutor();
+    }
+
+    @Override
+    public long consume() throws InterruptedException {
+      return executor.executeWhen(this::canConsume, this::doConsume);
+    }
+
+    @Override
+    public void produce(long value) throws InterruptedException {
+      executor.executeWhen(this::canProduce, () -> doProduce(value));
+    }
+
+    @Override
+    public void accumulate(long value) {
+      executor.execute(() -> doAccumulate(value));
+    }
+
+  }
+
+  private static class BargingGuardedExecutorPerfSubject extends ConcurrentPerfSubject {
+
+    private final BargingGuardedExecutor executor;
+
+    BargingGuardedExecutorPerfSubject(int capacity) {
+      super(capacity);
+      executor = new BargingGuardedExecutor();
     }
 
     @Override
