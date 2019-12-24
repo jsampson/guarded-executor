@@ -1048,17 +1048,16 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     START_OVER:
     while (true) {
       final Node startingPoint;
-      boolean skipped;
       if (priorLast != null) {
         startingPoint = priorLast.next;
         priorLast = null;
-        skipped = true;
       } else {
         startingPoint = runningHead;
-        skipped = false;
       }
+      Node next;
       NEXT_NODE:
-      for (Node curr = startingPoint; curr != null; curr = curr.next) {
+      for (Node curr = startingPoint; curr != null; curr = next) {
+        next = curr.next;
         if (curr.status == WAITING) {
           // The read of guard here is racy; it could see null if this node actually has no guard OR
           // if it gets cancelled right now. However, all that happens in that case is that we
@@ -1075,18 +1074,14 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
             if (t instanceof Error) {
               throw t;
             } else {
-              if (curr == runningHead) {
-                runningHead = curr.next;
+              if (curr == runningHead && next != null) {
+                runningHead = next;
               }
               continue NEXT_NODE;
             }
           }
           if (!satisfied) {
-            skipped = true;
             continue NEXT_NODE;
-          }
-          if (curr == runningHead) {
-            runningHead = curr.next;
           }
           if (beginExecuting(curr)) {
             Object returned = null;
@@ -1104,17 +1099,17 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
             } finally {
               endExecuting(curr, returned, thrown);
             }
-            if (skipped) {
+            if (curr != runningHead) {
               // At least one earlier guard was unsatisfied before, but may be satisfied now that
               // this task has been run, so we have to go back and reevaluate it.
               continue START_OVER;
             }
           }
-        } else {
-          if (curr == runningHead) {
-            runningHead = curr.next;
-          }
         }
+        if (curr == runningHead && next != null) {
+          runningHead = next;
+        }
+        continue NEXT_NODE;
       }
       // Either nothing was executed, or some prefix were executed and the remainder skipped.
       break START_OVER;
