@@ -1048,13 +1048,15 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     START_OVER:
     while (true) {
       final Node startingPoint;
+      boolean skipped;
       if (priorLast != null) {
         startingPoint = priorLast.next;
         priorLast = null;
+        skipped = true;
       } else {
         startingPoint = runningHead;
+        skipped = false;
       }
-      boolean skipped = false;
       NEXT_NODE:
       for (Node curr = startingPoint; curr != null; curr = curr.next) {
         if (curr.status == WAITING) {

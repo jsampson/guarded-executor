@@ -291,6 +291,50 @@ public class SupplementalGuardedExecutorTest extends TestCase {
     thread2.assertCaughtAtEnd(CancellationException.class, thrown);
   }
 
+  /**
+   * Tests for an eligible task earlier in the queue being executed after a task
+   * that arrives concurrently and before the task of the executing thread.
+   *
+   * @see <a href="https://github.com/jsampson/guarded-executor/issues/4">Issue #4</a>
+   */
+  public void testAdditionalTaskArrivesAfterTentativeTailAndSatisfiesEarlierGuard()
+      throws InterruptedException {
+    AtomicBoolean flag = new AtomicBoolean();
+    List<String> list = new ArrayList<>();
+
+    TestingThread<Void> threadA = startTestingThread(() -> {
+      executor.executeWhen(flag::get, () -> list.add("a"));
+    });
+
+    threadA.waitForParked(executor);
+
+    TestingThread<Void> threadB = startTestingThread(() -> {
+      executor.executeWhen(() -> {
+        arrive("first time in guard");
+        pause("returning from guard");
+        return flag.get();
+      }, () -> list.add("b"));
+    });
+
+    threadB.checkArrived("first time in guard");
+
+    TestingThread<Void> threadC = startTestingThread(() -> {
+      executor.execute(() -> {
+        flag.set(true);
+        list.add("c");
+      });
+    });
+
+    threadC.waitForParked(executor);
+    assertEquals(2, executor.getQueueLength());
+
+    threadB.unpause("returning from guard");
+    threadB.waitForExited();
+    assertEquals(0, executor.getQueueLength());
+
+    assertEquals(asList("c", "a", "b"), list);
+  }
+
   public void testReentrantExecutionDisallowed() throws InterruptedException {
     AtomicBoolean innerExecuted = new AtomicBoolean();
 
