@@ -1042,77 +1042,73 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
   /**
    * Actually execute nodes in queue order, starting from head and following 'next' links.
    */
-  private void executeTasksFromHead(final Node head, Node priorLast) {
+  private void executeTasksFromHead(final Node head, final Node priorLast) {
     Node runningHead = head;
+    Node curr = priorLast != null ? priorLast.next : head;
 
-    START_OVER:
     while (true) {
-      final Node startingPoint;
-      if (priorLast != null) {
-        startingPoint = priorLast.next;
-        priorLast = null;
-      } else {
-        startingPoint = runningHead;
-      }
-      Node next;
-      NEXT_NODE:
-      for (Node curr = startingPoint; curr != null; curr = next) {
-        next = curr.next;
-        if (curr.status == WAITING) {
-          // The read of guard here is racy; it could see null if this node actually has no guard OR
-          // if it gets cancelled right now. However, all that happens in that case is that we
-          // accidentally set satisfied = true and then attempt to call beginExecuting(), which will
-          // fail if the node has actually been cancelled.
-          final BooleanSupplier guard = curr.guard;
-          boolean satisfied;
-          try {
-            satisfied = (guard == null || guard.getAsBoolean());
-          } catch (Throwable t) {
-            if (beginExecuting(curr)) {
-              endExecuting(curr, null, t);
+      final Node next = curr.next;
+      if (curr.status == WAITING) {
+        final BooleanSupplier guard = curr.guard;
+        final boolean satisfied;
+        try {
+          satisfied = (guard == null || guard.getAsBoolean());
+        } catch (Throwable t) {
+          if (beginExecuting(curr)) {
+            endExecuting(curr, null, t);
+          }
+          if (t instanceof Error) {
+            throw t;
+          } else {
+            if (next == null) {
+              return;
+            } else if (curr == runningHead) {
+              curr = next;
+              runningHead = next;
+              continue;
+            } else {
+              curr = next;
+              continue;
             }
+          }
+        }
+        if (!satisfied) {
+          if (next == null) {
+            return;
+          } else {
+            curr = next;
+            continue;
+          }
+        }
+        if (beginExecuting(curr)) {
+          Object returned = null;
+          Throwable thrown = null;
+          try {
+            returned = curr.execute();
+          } catch (Throwable t) {
+            thrown = t;
             if (t instanceof Error) {
               throw t;
-            } else {
-              if (curr == runningHead && next != null) {
-                runningHead = next;
-              }
-              continue NEXT_NODE;
             }
+          } finally {
+            endExecuting(curr, returned, thrown);
           }
-          if (!satisfied) {
-            continue NEXT_NODE;
-          }
-          if (beginExecuting(curr)) {
-            Object returned = null;
-            Throwable thrown = null;
-            try {
-              // The read of taskOrResult in execute() may seem racy, but it is not. The only way
-              // another thread might modify it is by cancelling or executing the node, but we're
-              // already exclusively executing it in _this_ thread.
-              returned = curr.execute();
-            } catch (Throwable t) {
-              thrown = t;
-              if (t instanceof Error) {
-                throw t;
-              }
-            } finally {
-              endExecuting(curr, returned, thrown);
-            }
-            if (curr != runningHead) {
-              // At least one earlier guard was unsatisfied before, but may be satisfied now that
-              // this task has been run, so we have to go back and reevaluate it.
-              continue START_OVER;
-            }
+          if (curr != runningHead) {
+            curr = runningHead;
+            continue;
           }
         }
-        if (curr == runningHead && next != null) {
-          runningHead = next;
-        }
-        continue NEXT_NODE;
       }
-      // Either nothing was executed, or some prefix were executed and the remainder skipped.
-      break START_OVER;
+      if (next == null) {
+        return;
+      } else if (curr == runningHead) {
+        curr = next;
+        runningHead = next;
+        continue;
+      } else {
+        curr = next;
+        continue;
+      }
     }
   }
 
