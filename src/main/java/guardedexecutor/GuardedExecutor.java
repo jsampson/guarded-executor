@@ -1044,71 +1044,61 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
    */
   private void executeTasksFromHead(final Node head, final Node priorLast) {
     Node runningHead = head;
-    Node curr = priorLast != null ? priorLast.next : head;
+    Node curr = priorLast != null ? priorLast.next : runningHead;
 
-    while (true) {
-      final Node next = curr.next;
-      if (curr.status == WAITING) {
-        final BooleanSupplier guard = curr.guard;
-        final boolean satisfied;
-        try {
-          satisfied = (guard == null || guard.getAsBoolean());
-        } catch (Throwable t) {
-          if (beginExecuting(curr)) {
-            endExecuting(curr, null, t);
-          }
-          if (t instanceof Error) {
-            throw t;
-          } else {
-            if (next == null) {
-              return;
-            } else if (curr == runningHead) {
-              curr = next;
-              runningHead = next;
-              continue;
-            } else {
-              curr = next;
-              continue;
-            }
-          }
-        }
-        if (!satisfied) {
-          if (next == null) {
-            return;
-          } else {
-            curr = next;
-            continue;
-          }
-        }
-        if (beginExecuting(curr)) {
-          Object returned = null;
-          Throwable thrown = null;
-          try {
-            returned = curr.execute();
-          } catch (Throwable t) {
-            thrown = t;
-            if (t instanceof Error) {
-              throw t;
-            }
-          } finally {
-            endExecuting(curr, returned, thrown);
-          }
-          if (curr != runningHead) {
-            curr = runningHead;
-            continue;
-          }
-        }
-      }
-      if (next == null) {
-        return;
-      } else if (curr == runningHead) {
-        curr = next;
-        runningHead = next;
-        continue;
+    while (curr != null) {
+      final boolean executed = evaluateGuard(curr) && attemptExecute(curr);
+
+      if (curr == runningHead && curr.status != WAITING) {
+        curr = runningHead = curr.next;
+      } else if (executed) {
+        curr = runningHead;
       } else {
-        curr = next;
-        continue;
+        curr = curr.next;
       }
+    }
+  }
+
+  /**
+   * Evaluates the given node's guard, and returns true if the guard is
+   * currently satisfied or, possibly, if the node is no longer waiting (and
+   * therefore its non-volatile guard field may be nulled out concurrently).
+   */
+  private boolean evaluateGuard(final Node node) {
+    final BooleanSupplier guard = node.guard;
+    try {
+      return guard == null || guard.getAsBoolean();
+    } catch (Throwable t) {
+      if (beginExecuting(node)) {
+        endExecuting(node, null, t);
+      }
+      if (t instanceof Error) {
+        throw t;
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Executes the given node's task if it is still waiting.
+   */
+  private boolean attemptExecute(final Node node) {
+    if (beginExecuting(node)) {
+      Object returned = null;
+      Throwable thrown = null;
+      try {
+        returned = node.execute();
+      } catch (Throwable t) {
+        thrown = t;
+        if (t instanceof Error) {
+          throw t;
+        }
+      } finally {
+        endExecuting(node, returned, thrown);
+      }
+      return true;
+    } else {
+      return false;
     }
   }
 
