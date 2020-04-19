@@ -979,37 +979,47 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Runnable runnable,
       final Supplier<?> supplier) {
 
-    if (tryAcquireLock()) {
-      boolean throwingWithoutExecuting = true;
-      try {
-        final Object consumedResult = consumeResult(currentNode, false);
-        if (consumedResult != NOT_EXECUTED_YET) {
-          throwingWithoutExecuting = false;
-          return consumedResult;
+    int tries = 0;
+    while (!tryAcquireLock()) {
+      tries++;
+      if (tries <= 1000 && currentNode == tail) {
+        if (currentNode.status == WAITING) {
+          Thread.yield();
         } else {
-          executeTasksUpTo(currentNode.prev, null);
-          if (guard == null || guard.getAsBoolean()) {
-            cancelBeforeExecuting(currentNode);
-            throwingWithoutExecuting = false;
-            if (runnable != null) {
-              runnable.run();
-              return null;
-            } else {
-              return supplier.get();
-            }
-          } else {
-            throwingWithoutExecuting = false;
-            return NOT_EXECUTED_YET;
-          }
+          return consumeResult(currentNode, false);
         }
-      } finally {
-        if (throwingWithoutExecuting) {
-          cancelBecauseThrowing(currentNode);
-        }
-        releaseLock(currentNode);
+      } else {
+        return NOT_EXECUTED_YET;
       }
-    } else {
-      return NOT_EXECUTED_YET;
+    }
+
+    boolean throwingWithoutExecuting = true;
+    try {
+      final Object consumedResult = consumeResult(currentNode, false);
+      if (consumedResult != NOT_EXECUTED_YET) {
+        throwingWithoutExecuting = false;
+        return consumedResult;
+      } else {
+        executeTasksUpTo(currentNode.prev, null);
+        if (guard == null || guard.getAsBoolean()) {
+          cancelBeforeExecuting(currentNode);
+          throwingWithoutExecuting = false;
+          if (runnable != null) {
+            runnable.run();
+            return null;
+          } else {
+            return supplier.get();
+          }
+        } else {
+          throwingWithoutExecuting = false;
+          return NOT_EXECUTED_YET;
+        }
+      }
+    } finally {
+      if (throwingWithoutExecuting) {
+        cancelBecauseThrowing(currentNode);
+      }
+      releaseLock(currentNode);
     }
   }
 
