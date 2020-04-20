@@ -87,6 +87,11 @@ public final class ConcurrentPerfMain {
     private long tearDownNanos;
     private long gcMillis;
     private long workSeedChecksum;
+    private long totalCount;
+    private long nonQueuedCount;
+    private long mainParkCount;
+    private long consumeParkCount;
+    private long consumeReturnCount;
 
     private PerfScenario(
         ConcurrentPerfSubjectImpl impl, int numThreads, int capacity, int workReps) {
@@ -218,6 +223,14 @@ public final class ConcurrentPerfMain {
       this.setUpNanos = time2 - time1;
       this.runningNanos = time3 - time2;
       this.tearDownNanos = time4 - time3;
+
+      if (impl == ConcurrentPerfSubjectImpl.GUARDED_EXECUTOR) {
+        this.totalCount = GuardedExecutor.totalCounter.sumThenReset();
+        this.nonQueuedCount = GuardedExecutor.nonQueuedCounter.sumThenReset();
+        this.mainParkCount = GuardedExecutor.mainParkCounter.sumThenReset();
+        this.consumeParkCount = GuardedExecutor.consumeParkCounter.sumThenReset();
+        this.consumeReturnCount = GuardedExecutor.consumeReturnCounter.sumThenReset();
+      }
     }
 
   }
@@ -418,7 +431,9 @@ public final class ConcurrentPerfMain {
               List<PerfScenario> perfScenarios = foundScenarios.get(numThreads);
               assert perfScenarios.size() == TRIALS_PER_SCENARIO : perfScenarios;
               PerfScenario scenario = perfScenarios.get(r);
-              report.start("td", "class", borrowedClass + "throughput")
+              String counts = impl != ConcurrentPerfSubjectImpl.GUARDED_EXECUTOR
+                  ? null : String.format("total: %d%nnon-queued: %d%nmain park: %d%nconsume park: %d%nconsume return: %d%n", scenario.totalCount, scenario.nonQueuedCount, scenario.mainParkCount, scenario.consumeParkCount, scenario.consumeReturnCount);
+              report.start("td", "class", borrowedClass + "throughput", "title", counts)
                   .text(Math.round(scenario.throughput)).end("td");
               String fairClass = scenario.liveness >= scenario.expectedLiveness ? " fair" : "";
               report.start("td", "class", borrowedClass + "liveness" + fairClass,
