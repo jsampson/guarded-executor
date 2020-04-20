@@ -822,6 +822,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     assert initialResult != NOT_EXECUTED_YET;
 
     if (initialResult == null || initialResult.getClass() != Node.class) {
+      nonQueuedCounter.increment();
       return initialResult;
     }
 
@@ -922,7 +923,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Supplier<?> supplier,
       final boolean addToQueue) {
 
-    if (tryAcquireLock()) {
+    if (spinAcquireLock()) {
       Node currentNode = null;
       boolean throwingWithoutExecuting = true;
       try {
@@ -1294,6 +1295,19 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         Thread.currentThread().interrupt();
       }
     }
+  }
+
+  private boolean spinAcquireLock() {
+    if (tryAcquireLock()) {
+      return true;
+    }
+    for (int spins = 0; spins < 1000; spins++) {
+      Thread.onSpinWait();
+      if (tryAcquireLock()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private boolean tryAcquireLock() {
