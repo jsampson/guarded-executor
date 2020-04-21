@@ -1301,7 +1301,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     if (tryAcquireLock()) {
       return true;
     }
-    for (int spins = 0; spins < 1000; spins++) {
+    for (int spins = 0; spins < 100; spins++) {
       Thread.onSpinWait();
       if (tryAcquireLock()) {
         return true;
