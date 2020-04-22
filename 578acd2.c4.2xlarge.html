@@ -1,0 +1,867 @@
+<html>
+  <head>
+    <!-- workSeedChecksum=3225762894155057740 -->
+    <title>Performance Test Results 2020-04-21 16:15:41</title>
+    <style>
+      .odd-outlier, .odd-median { background: #DDE4FF }
+      .odd-outlier td, .even-outlier td, .borrowed { color: #AAAAAA }
+      td { text-align: right }
+      .odd-outlier th, .odd-median th, .even-outlier th, .even-median th { text-align: left }
+      td.throughput { border-left: 1px solid #AAAAAA }
+      td.liveness { font-size: smaller }
+      td.gc { font-size: smaller; font-style: italic }
+      td.fair { text-decoration: wavy underline; }
+    </style>
+  </head>
+  <body>
+    <h1>Performance Test Results 2020-04-21 16:15:41</h1>
+    <p><b>Description:</b></p>
+    <p>Running on a c4.2xlarge instance at commit 578acd2: Try spinning 100 times instead of 1000.</p>
+    <p><b>Test Configuration:</b></p>
+    <ul>
+      <li>SUBJECTS: SYNCHRONIZED, REENTRANT_LOCK, REENTRANT_LOCK_FAIR, GUAVA_MONITOR, GUAVA_MONITOR_FAIR, GUARDED_EXECUTOR</li>
+      <li>WORK_LOADS: 10, 1000</li>
+      <li>THREAD_COUNTS: 1, 2, 6, 20, 100</li>
+      <li>CAPACITIES: 1, 3, 10</li>
+      <li>TRIALS_PER_SCENARIO: 3</li>
+      <li>SAMPLES_PER_TRIAL: 10</li>
+      <li>SAMPLE_MILLIS: 200</li>
+      <li>WARMUP_MILLIS: 300</li>
+      <li>THROUGHPUT_GRANULARITY: 50</li>
+    </ul>
+    <p><b>System Information:</b></p>
+    <ul>
+      <li>OS: Linux; amd64; 8 processors; 0.0 load at start, 10.59 load at end</li>
+      <li>VM: 12; OpenJDK 64-Bit Server VM; build 12.0.1+12</li>
+      <li>GC: G1 Young Generation; G1 Old Generation</li>
+      <li>JIT: HotSpot 64-Bit Tiered Compilers</li>
+      <li>Options:
+        <ul>
+          <li><tt>-Xcomp</tt></li>
+          <li><tt>-Xbatch</tt></li>
+          <li><tt>-XX:-UseBiasedLocking</tt></li>
+          <li><tt>-Dreport.file.name=run-remote-tmp-mIvWvk/report.html</tt></li>
+          <li><tt>-Dreport.description=Running on a c4.2xlarge instance at commit 578acd2: Try spinning 100 times instead of 1000.</tt></li>
+        </ul>
+      </li>
+    </ul>
+    <p><b>Legend:</b></p>
+    <ul>
+      <li>Values in black are the median throughput from three runs; values in gray are the other two runs.</li>
+      <li>Each data point is reported as &quot;1234&nbsp;&nbsp;<small>56%&nbsp;&nbsp;<i>7ms</i></small>&quot;: the first number represents the average total throughput for that run in operations per millisecond; the second number is a measure of fairness (100% means all threads had equal throughput); and the third number is the time spent in GC.</li>
+      <li>If the fairness percentage has a wavy underline, it is at least as good as a benchmark fairness level based on the current throughput granularity. The benchmark value is available in a tooltip.</li>
+      <li>The &quot;Workload&quot; in the header of each scenario is the target average repetitions of simulated work between operations.</li>
+      <li>The &quot;Capacity&quot; in the header of each scenario represents the simulated capacity of the simulated blocking queue tested in that scenario.</li>
+      <li>The &quot;BASELINE&quot; subject is merely adding to an AtomicLong in order to give an empirical measurement of the maximum throughput that could be expected for a given workload.</li>
+    </ul>
+    <p><b>Actual Sample Duration:</b> mean=200ms, s.d.=1ms</p>
+    <h2>Simple Locking Scenario (Workload=10)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="throughput">30521</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">11832</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">13401</td><td class="liveness" title="Benchmark: 100%">83%</td><td class="gc">10ms</td><td class="throughput">12642</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">12308</td><td class="liveness" title="Benchmark: 100%">96%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">30529</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">12531</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">13512</td><td class="liveness" title="Benchmark: 100%">84%</td><td class="gc">12ms</td><td class="throughput">12680</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">9ms</td><td class="throughput">12341</td><td class="liveness" title="Benchmark: 100%">96%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">30546</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">13795</td><td class="liveness" title="Benchmark: 100%">90%</td><td class="gc">11ms</td><td class="throughput">15243</td><td class="liveness" title="Benchmark: 100%">89%</td><td class="gc">11ms</td><td class="throughput">13059</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">13758</td><td class="liveness" title="Benchmark: 100%">95%</td><td class="gc">10ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="throughput">21831</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">4945</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">18ms</td><td class="throughput">15232</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">10ms</td><td class="throughput">15550</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">15218</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-median"><td class="throughput">21931</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">4969</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">20ms</td><td class="throughput">15460</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">11ms</td><td class="throughput">15590</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">15277</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">21954</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">5206</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">21ms</td><td class="throughput">15609</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">9ms</td><td class="throughput">15716</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">15336</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="throughput">21094</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="throughput">21504</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">21572</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">76</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">13ms</td><td class="throughput">74</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">13ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="throughput">22218</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">4809</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">20ms</td><td class="throughput">15396</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">0ms</td><td class="throughput">15641</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">15623</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-median"><td class="throughput">22326</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">4812</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">20ms</td><td class="throughput">15566</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">11ms</td><td class="throughput">15661</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">15820</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">0ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">22349</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">4931</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">23ms</td><td class="throughput">15593</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">12ms</td><td class="throughput">16167</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">0ms</td><td class="throughput">15882</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="throughput">22298</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">22308</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">78</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 89%">99%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">22321</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">82</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 89%">99%</td><td class="gc">0ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="throughput" title="total: 21053649
+non-queued: 21053649
+main park: 0
+consume park: 0
+consume return: 0
+">9142</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">20ms</td><td class="throughput" title="total: 9405898
+non-queued: 9405845
+main park: 54
+consume park: 0
+consume return: 51
+">3986</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">23ms</td><td class="throughput" title="total: 4859494
+non-queued: 4833672
+main park: 26669
+consume park: 395
+consume return: 24981
+">2102</td><td class="liveness" title="Benchmark: 100%">92%</td><td class="gc">17ms</td><td class="throughput" title="total: 4270680
+non-queued: 4139427
+main park: 135691
+consume park: 1098
+consume return: 128989
+">1855</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">18ms</td><td class="throughput" title="total: 4147550
+non-queued: 3866868
+main park: 286046
+consume park: 1078
+consume return: 278194
+">1447</td><td class="liveness" title="Benchmark: 100%">93%</td><td class="gc">22ms</td></tr>
+      <tr class="odd-median"><td class="throughput" title="total: 21190399
+non-queued: 21190399
+main park: 0
+consume park: 0
+consume return: 0
+">9199</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">20ms</td><td class="throughput" title="total: 9383948
+non-queued: 9383864
+main park: 76
+consume park: 5
+consume return: 58
+">4035</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">23ms</td><td class="throughput" title="total: 4979694
+non-queued: 4954938
+main park: 25703
+consume park: 458
+consume return: 23930
+">2146</td><td class="liveness" title="Benchmark: 100%">84%</td><td class="gc">18ms</td><td class="throughput" title="total: 4326180
+non-queued: 4196135
+main park: 134604
+consume park: 1142
+consume return: 127859
+">1874</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">18ms</td><td class="throughput" title="total: 4320450
+non-queued: 4059694
+main park: 266325
+consume park: 1237
+consume return: 258175
+">1649</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">22ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput" title="total: 21206299
+non-queued: 21206299
+main park: 0
+consume park: 0
+consume return: 0
+">9210</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">19ms</td><td class="throughput" title="total: 9575748
+non-queued: 9575697
+main park: 44
+consume park: 2
+consume return: 33
+">4048</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">24ms</td><td class="throughput" title="total: 5138544
+non-queued: 5120914
+main park: 18225
+consume park: 358
+consume return: 17021
+">2176</td><td class="liveness" title="Benchmark: 100%">92%</td><td class="gc">18ms</td><td class="throughput" title="total: 4330080
+non-queued: 4202924
+main park: 131472
+consume park: 1022
+consume return: 124948
+">1889</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">19ms</td><td class="throughput" title="total: 3652050
+non-queued: 3439872
+main park: 215427
+consume park: 665
+consume return: 210379
+">1781</td><td class="liveness" title="Benchmark: 100%">95%</td><td class="gc">9ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">40303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">28939</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38273</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">49114</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">48970</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">40462</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">29773</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49130</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49048</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">40498</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">30608</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38517</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">49147</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">49063</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+    </table>
+    <h2>Simple Locking Scenario (Workload=1000)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="throughput">635</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1219</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">3218</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">3919</td><td class="liveness" title="Benchmark: 100%">93%</td><td class="gc">11ms</td><td class="throughput">3892</td><td class="liveness" title="Benchmark: 100%">51%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">635</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">1222</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">3218</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">9ms</td><td class="throughput">3945</td><td class="liveness" title="Benchmark: 100%">96%</td><td class="gc">0ms</td><td class="throughput">3916</td><td class="liveness" title="Benchmark: 100%">52%</td><td class="gc">0ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">635</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">1226</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">3233</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">3984</td><td class="liveness" title="Benchmark: 100%">95%</td><td class="gc">12ms</td><td class="throughput">3916</td><td class="liveness" title="Benchmark: 100%">54%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="throughput">631</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1171</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1099</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1094</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1060</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">13ms</td></tr>
+      <tr class="odd-median"><td class="throughput">631</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1171</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1104</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1095</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1089</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">631</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">1175</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1111</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1096</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1089</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">0ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="throughput">630</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">243</td><td class="liveness" title="Benchmark: 100%">44%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="throughput">631</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">246</td><td class="liveness" title="Benchmark: 100%">32%</td><td class="gc">11ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 89%">99%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">631</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">348</td><td class="liveness" title="Benchmark: 100%">55%</td><td class="gc">11ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 89%">99%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="throughput">631</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1161</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1058</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1050</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">1ms</td><td class="throughput">1045</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-median"><td class="throughput">631</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">1162</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1062</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">1052</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">1046</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">632</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1164</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1062</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">1055</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">1047</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="throughput">631</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">81</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="throughput">631</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">144</td><td class="liveness" title="Benchmark: 100%">38%</td><td class="gc">12ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">74</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">631</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">169</td><td class="liveness" title="Benchmark: 100%">65%</td><td class="gc">11ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">75</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="throughput" title="total: 1393999
+non-queued: 1393999
+main park: 0
+consume park: 0
+consume return: 0
+">606</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">13ms</td><td class="throughput" title="total: 2514198
+non-queued: 2514183
+main park: 15
+consume park: 1
+consume return: 13
+">1089</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">14ms</td><td class="throughput" title="total: 5936044
+non-queued: 5935941
+main park: 114
+consume park: 2
+consume return: 98
+">2572</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">19ms</td><td class="throughput" title="total: 6829580
+non-queued: 6822935
+main park: 6914
+consume park: 2
+consume return: 6608
+">2826</td><td class="liveness" title="Benchmark: 100%">94%</td><td class="gc">22ms</td><td class="throughput" title="total: 7226100
+non-queued: 7149473
+main park: 76953
+consume park: 1
+consume return: 76573
+">2506</td><td class="liveness" title="Benchmark: 100%">64%</td><td class="gc">30ms</td></tr>
+      <tr class="odd-median"><td class="throughput" title="total: 1394549
+non-queued: 1394549
+main park: 0
+consume park: 0
+consume return: 0
+">606</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">14ms</td><td class="throughput" title="total: 2523648
+non-queued: 2523646
+main park: 0
+consume park: 0
+consume return: 0
+">1096</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">15ms</td><td class="throughput" title="total: 6057794
+non-queued: 6057658
+main park: 150
+consume park: 0
+consume return: 127
+">2604</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">19ms</td><td class="throughput" title="total: 6706880
+non-queued: 6695057
+main park: 12250
+consume park: 2
+consume return: 11768
+">2838</td><td class="liveness" title="Benchmark: 100%">93%</td><td class="gc">22ms</td><td class="throughput" title="total: 7186200
+non-queued: 7140017
+main park: 46544
+consume park: 2
+consume return: 46134
+">2612</td><td class="liveness" title="Benchmark: 100%">62%</td><td class="gc">29ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput" title="total: 1410999
+non-queued: 1410999
+main park: 0
+consume park: 0
+consume return: 0
+">613</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">2ms</td><td class="throughput" title="total: 2569398
+non-queued: 2569396
+main park: 2
+consume park: 0
+consume return: 0
+">1114</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput" title="total: 6008444
+non-queued: 6008313
+main park: 136
+consume park: 3
+consume return: 115
+">2616</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">20ms</td><td class="throughput" title="total: 7164480
+non-queued: 7154163
+main park: 10692
+consume park: 0
+consume return: 10271
+">2918</td><td class="liveness" title="Benchmark: 100%">96%</td><td class="gc">23ms</td><td class="throughput" title="total: 7363700
+non-queued: 7306385
+main park: 57866
+consume park: 1
+consume return: 57261
+">2676</td><td class="liveness" title="Benchmark: 100%">69%</td><td class="gc">29ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">1253</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">3335</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4163</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">1254</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4164</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">1255</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4182</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">0ms</td><td class="borrowed throughput">4162</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+    </table>
+    <h2>Producer/Consumer Scenario (Capacity=1; Workload=10)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="throughput">13952</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">36</td><td class="liveness" title="Benchmark: 100%">58%</td><td class="gc">11ms</td><td class="throughput">29</td><td class="liveness" title="Benchmark: 97%">51%</td><td class="gc">11ms</td><td class="throughput">28</td><td class="liveness" title="Benchmark: 56%">49%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">13957</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">78</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">0ms</td><td class="throughput">33</td><td class="liveness" title="Benchmark: 98%">75%</td><td class="gc">10ms</td><td class="throughput">33</td><td class="liveness fair" title="Benchmark: 64%">67%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">13968</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">81</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">11ms</td><td class="throughput">45</td><td class="liveness" title="Benchmark: 99%">78%</td><td class="gc">10ms</td><td class="throughput">35</td><td class="liveness" title="Benchmark: 66%">63%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="throughput">18284</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">76</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">69</td><td class="liveness fair" title="Benchmark: 99%">100%</td><td class="gc">12ms</td><td class="throughput">68</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-median"><td class="throughput">18351</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">18362</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">10ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="throughput">18411</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">78</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">51</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">12ms</td><td class="throughput">36</td><td class="liveness" title="Benchmark: 98%">50%</td><td class="gc">11ms</td><td class="throughput">42</td><td class="liveness" title="Benchmark: 74%">59%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="throughput">18417</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">44</td><td class="liveness" title="Benchmark: 99%">60%</td><td class="gc">12ms</td><td class="throughput">43</td><td class="liveness" title="Benchmark: 75%">62%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">18419</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">74</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">51</td><td class="liveness" title="Benchmark: 99%">70%</td><td class="gc">11ms</td><td class="throughput">52</td><td class="liveness" title="Benchmark: 81%">73%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="throughput">16619</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">69</td><td class="liveness fair" title="Benchmark: 99%">100%</td><td class="gc">9ms</td><td class="throughput">67</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">1ms</td></tr>
+      <tr class="odd-median"><td class="throughput">16899</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">78</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">67</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">16929</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">79</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">68</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">13ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="throughput">15908</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">47</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">11ms</td><td class="throughput">36</td><td class="liveness" title="Benchmark: 98%">40%</td><td class="gc">11ms</td><td class="throughput">39</td><td class="liveness" title="Benchmark: 71%">57%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">15916</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">48</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">11ms</td><td class="throughput">51</td><td class="liveness" title="Benchmark: 99%">70%</td><td class="gc">12ms</td><td class="throughput">46</td><td class="liveness" title="Benchmark: 77%">65%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">15928</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">49</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">10ms</td><td class="throughput">58</td><td class="liveness" title="Benchmark: 99%">80%</td><td class="gc">12ms</td><td class="throughput">46</td><td class="liveness" title="Benchmark: 77%">65%</td><td class="gc">10ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="throughput" title="total: 17650584
+non-queued: 17650584
+main park: 0
+consume park: 0
+consume return: 0
+">7670</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">4ms</td><td class="throughput" title="total: 522151
+non-queued: 348100
+main park: 174053
+consume park: 1
+consume return: 174046
+">225</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput" title="total: 1172666
+non-queued: 645331
+main park: 618019
+consume park: 2994
+consume return: 517709
+">512</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">13ms</td><td class="throughput" title="total: 1358407
+non-queued: 699388
+main park: 702760
+consume park: 812
+consume return: 653140
+">597</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1197456
+non-queued: 427723
+main park: 791989
+consume park: 188
+consume return: 767502
+">434</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">18ms</td></tr>
+      <tr class="odd-median"><td class="throughput" title="total: 17662094
+non-queued: 17662094
+main park: 0
+consume park: 0
+consume return: 0
+">7676</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">18ms</td><td class="throughput" title="total: 525102
+non-queued: 350068
+main park: 175036
+consume park: 0
+consume return: 175032
+">228</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">13ms</td><td class="throughput" title="total: 1229311
+non-queued: 688368
+main park: 640694
+consume park: 2964
+consume return: 531801
+">541</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">14ms</td><td class="throughput" title="total: 1357824
+non-queued: 697100
+main park: 703805
+consume park: 752
+consume return: 655100
+">599</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">17ms</td><td class="throughput" title="total: 1123400
+non-queued: 365174
+main park: 777968
+consume park: 212
+consume return: 756231
+">435</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">19ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput" title="total: 17712252
+non-queued: 17712252
+main park: 0
+consume park: 0
+consume return: 0
+">7697</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">18ms</td><td class="throughput" title="total: 535630
+non-queued: 357085
+main park: 178547
+consume park: 0
+consume return: 178542
+">231</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput" title="total: 1353404
+non-queued: 802983
+main park: 647593
+consume park: 2925
+consume return: 540386
+">578</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">17ms</td><td class="throughput" title="total: 1365428
+non-queued: 696646
+main park: 712974
+consume park: 802
+consume return: 663198
+">601</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1065241
+non-queued: 370928
+main park: 714413
+consume park: 188
+consume return: 692265
+">448</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">18ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">40303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">28939</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38273</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">49114</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">48970</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">40462</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">29773</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49130</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49048</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">40498</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">30608</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38517</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">49147</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">49063</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+    </table>
+    <h2>Producer/Consumer Scenario (Capacity=1; Workload=1000)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="throughput">620</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">81</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">10ms</td><td class="throughput">22</td><td class="liveness" title="Benchmark: 95%">45%</td><td class="gc">11ms</td><td class="throughput">32</td><td class="liveness" title="Benchmark: 62%">53%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">621</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">83</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">34%</td><td class="gc">9ms</td><td class="throughput">22</td><td class="liveness" title="Benchmark: 95%">42%</td><td class="gc">11ms</td><td class="throughput">34</td><td class="liveness" title="Benchmark: 64%">63%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">621</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">83</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">82</td><td class="liveness" title="Benchmark: 100%">34%</td><td class="gc">11ms</td><td class="throughput">37</td><td class="liveness" title="Benchmark: 98%">65%</td><td class="gc">10ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 90%">2%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="throughput">627</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">69</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">67</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-median"><td class="throughput">628</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">78</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">68</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">628</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">81</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="throughput">628</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">47</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">9ms</td><td class="throughput">35</td><td class="liveness" title="Benchmark: 98%">40%</td><td class="gc">10ms</td><td class="throughput">38</td><td class="liveness" title="Benchmark: 70%">53%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">628</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">82</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">49</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">12ms</td><td class="throughput">36</td><td class="liveness" title="Benchmark: 98%">50%</td><td class="gc">11ms</td><td class="throughput">39</td><td class="liveness" title="Benchmark: 71%">55%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">628</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">83</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">50</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">12ms</td><td class="throughput">51</td><td class="liveness" title="Benchmark: 99%">70%</td><td class="gc">10ms</td><td class="throughput">45</td><td class="liveness" title="Benchmark: 77%">64%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="throughput">625</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">65</td><td class="liveness fair" title="Benchmark: 87%">97%</td><td class="gc">13ms</td></tr>
+      <tr class="odd-median"><td class="throughput">625</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">68</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">0ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput">625</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">81</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">69</td><td class="liveness fair" title="Benchmark: 88%">98%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="throughput">624</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">67</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">50</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">0ms</td><td class="throughput">34</td><td class="liveness" title="Benchmark: 98%">50%</td><td class="gc">11ms</td><td class="throughput">35</td><td class="liveness" title="Benchmark: 66%">49%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="throughput">624</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness" title="Benchmark: 100%">96%</td><td class="gc">11ms</td><td class="throughput">43</td><td class="liveness" title="Benchmark: 99%">60%</td><td class="gc">11ms</td><td class="throughput">42</td><td class="liveness" title="Benchmark: 74%">59%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="throughput">624</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">82</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">56</td><td class="liveness" title="Benchmark: 99%">80%</td><td class="gc">0ms</td><td class="throughput">43</td><td class="liveness" title="Benchmark: 75%">61%</td><td class="gc">1ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="throughput" title="total: 1373846
+non-queued: 1373846
+main park: 0
+consume park: 0
+consume return: 0
+">597</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">15ms</td><td class="throughput" title="total: 474581
+non-queued: 316386
+main park: 158197
+consume park: 0
+consume return: 158191
+">206</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput" title="total: 1134736
+non-queued: 633074
+main park: 597290
+consume park: 2851
+consume return: 485375
+">493</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1445496
+non-queued: 751464
+main park: 744380
+consume park: 1085
+consume return: 688347
+">633</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1207118
+non-queued: 459585
+main park: 771914
+consume park: 298
+consume return: 744980
+">503</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">20ms</td></tr>
+      <tr class="odd-median"><td class="throughput" title="total: 1376461
+non-queued: 1376461
+main park: 0
+consume park: 0
+consume return: 0
+">598</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">3ms</td><td class="throughput" title="total: 484725
+non-queued: 323184
+main park: 161543
+consume park: 1
+consume return: 161534
+">211</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">14ms</td><td class="throughput" title="total: 1118487
+non-queued: 620644
+main park: 590037
+consume park: 2490
+consume return: 482072
+">494</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1449666
+non-queued: 762302
+main park: 736091
+consume park: 1130
+consume return: 680037
+">640</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1206149
+non-queued: 478562
+main park: 752712
+consume park: 328
+consume return: 724883
+">507</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">20ms</td></tr>
+      <tr class="odd-outlier"><td class="throughput" title="total: 1376566
+non-queued: 1376566
+main park: 0
+consume park: 0
+consume return: 0
+">598</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">15ms</td><td class="throughput" title="total: 498046
+non-queued: 332029
+main park: 166017
+consume park: 0
+consume return: 166011
+">216</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">13ms</td><td class="throughput" title="total: 1164683
+non-queued: 650940
+main park: 613678
+consume park: 2612
+consume return: 496969
+">506</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">5ms</td><td class="throughput" title="total: 1499974
+non-queued: 812086
+main park: 738991
+consume park: 1297
+consume return: 680048
+">659</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">18ms</td><td class="throughput" title="total: 1499667
+non-queued: 637715
+main park: 895928
+consume park: 436
+consume return: 858295
+">508</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">20ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">1253</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">3335</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4163</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">1254</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4164</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">1255</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4182</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">0ms</td><td class="borrowed throughput">4162</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+    </table>
+    <h2>Producer/Consumer Scenario (Capacity=3; Workload=10)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3" class="borrowed">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="borrowed throughput">13952</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">230</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">232</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">11ms</td><td class="throughput">112</td><td class="liveness" title="Benchmark: 100%">65%</td><td class="gc">11ms</td><td class="throughput">99</td><td class="liveness" title="Benchmark: 94%">63%</td><td class="gc">9ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">13957</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">233</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">233</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">12ms</td><td class="throughput">125</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">12ms</td><td class="throughput">116</td><td class="liveness" title="Benchmark: 96%">68%</td><td class="gc">0ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">13968</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">241</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">237</td><td class="liveness" title="Benchmark: 100%">34%</td><td class="gc">11ms</td><td class="throughput">143</td><td class="liveness" title="Benchmark: 100%">78%</td><td class="gc">11ms</td><td class="throughput">126</td><td class="liveness" title="Benchmark: 96%">73%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="borrowed throughput">18284</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">225</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">76</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">12ms</td><td class="throughput">88</td><td class="liveness" title="Benchmark: 100%">40%</td><td class="gc">11ms</td><td class="throughput">97</td><td class="liveness" title="Benchmark: 94%">46%</td><td class="gc">0ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">18351</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">230</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">148</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">12ms</td><td class="throughput">109</td><td class="liveness" title="Benchmark: 100%">50%</td><td class="gc">11ms</td><td class="throughput">108</td><td class="liveness" title="Benchmark: 95%">52%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">18362</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="throughput">236</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">154</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">1ms</td><td class="throughput">129</td><td class="liveness" title="Benchmark: 100%">60%</td><td class="gc">11ms</td><td class="throughput">113</td><td class="liveness" title="Benchmark: 95%">54%</td><td class="gc">10ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="borrowed throughput">18411</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">58</td><td class="liveness" title="Benchmark: 99%">80%</td><td class="gc">11ms</td><td class="throughput">59</td><td class="liveness" title="Benchmark: 85%">83%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">18417</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">65</td><td class="liveness" title="Benchmark: 99%">90%</td><td class="gc">11ms</td><td class="throughput">63</td><td class="liveness fair" title="Benchmark: 86%">88%</td><td class="gc">13ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">18419</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">78</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">63</td><td class="liveness fair" title="Benchmark: 86%">88%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="borrowed throughput">16619</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">0ms</td><td class="throughput">223</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">176</td><td class="liveness" title="Benchmark: 100%">81%</td><td class="gc">12ms</td><td class="throughput">100</td><td class="liveness" title="Benchmark: 100%">46%</td><td class="gc">11ms</td><td class="throughput">124</td><td class="liveness" title="Benchmark: 96%">59%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">16899</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">229</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">224</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">111</td><td class="liveness" title="Benchmark: 100%">52%</td><td class="gc">9ms</td><td class="throughput">132</td><td class="liveness" title="Benchmark: 97%">63%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">16929</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">234</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">228</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">136</td><td class="liveness" title="Benchmark: 100%">64%</td><td class="gc">12ms</td><td class="throughput">143</td><td class="liveness" title="Benchmark: 97%">68%</td><td class="gc">10ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="borrowed throughput">15908</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">78</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">71</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 99%">100%</td><td class="gc">10ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">15916</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">15928</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="borrowed throughput" title="total: 17650584
+non-queued: 17650584
+main park: 0
+consume park: 0
+consume return: 0
+">7670</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">4ms</td><td class="throughput" title="total: 890775
+non-queued: 712621
+main park: 178156
+consume park: 0
+consume return: 178154
+">385</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">13ms</td><td class="throughput" title="total: 1685981
+non-queued: 1165930
+main park: 599530
+consume park: 2679
+consume return: 510856
+">725</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">16ms</td><td class="throughput" title="total: 1647273
+non-queued: 1042783
+main park: 640391
+consume park: 829
+consume return: 599277
+">725</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">15ms</td><td class="throughput" title="total: 1092235
+non-queued: 426902
+main park: 680812
+consume park: 210
+consume return: 663276
+">463</td><td class="liveness" title="Benchmark: 100%">94%</td><td class="gc">16ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput" title="total: 17662094
+non-queued: 17662094
+main park: 0
+consume park: 0
+consume return: 0
+">7676</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">18ms</td><td class="throughput" title="total: 901995
+non-queued: 721596
+main park: 180401
+consume park: 0
+consume return: 180398
+">389</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">14ms</td><td class="throughput" title="total: 1831363
+non-queued: 1346582
+main park: 560452
+consume park: 2078
+consume return: 476419
+">793</td><td class="liveness" title="Benchmark: 100%">95%</td><td class="gc">14ms</td><td class="throughput" title="total: 1691285
+non-queued: 1097453
+main park: 632485
+consume park: 1014
+consume return: 587967
+">743</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">18ms</td><td class="throughput" title="total: 1281276
+non-queued: 560518
+main park: 740512
+consume park: 247
+consume return: 718357
+">469</td><td class="liveness" title="Benchmark: 100%">96%</td><td class="gc">18ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput" title="total: 17712252
+non-queued: 17712252
+main park: 0
+consume park: 0
+consume return: 0
+">7697</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">18ms</td><td class="throughput" title="total: 914879
+non-queued: 732252
+main park: 182628
+consume park: 0
+consume return: 182622
+">397</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput" title="total: 2207752
+non-queued: 1724834
+main park: 549490
+consume park: 2267
+consume return: 474641
+">988</td><td class="liveness" title="Benchmark: 100%">95%</td><td class="gc">17ms</td><td class="throughput" title="total: 1691412
+non-queued: 1094987
+main park: 632842
+consume park: 904
+consume return: 590284
+">750</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1329416
+non-queued: 596170
+main park: 753876
+consume park: 316
+consume return: 730547
+">481</td><td class="liveness" title="Benchmark: 100%">94%</td><td class="gc">19ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">40303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">28939</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38273</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">49114</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">48970</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">40462</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">29773</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49130</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49048</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">40498</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">30608</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38517</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">49147</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">49063</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+    </table>
+    <h2>Producer/Consumer Scenario (Capacity=3; Workload=1000)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3" class="borrowed">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="borrowed throughput">620</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">698</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">10ms</td><td class="throughput">88</td><td class="liveness" title="Benchmark: 100%">52%</td><td class="gc">9ms</td><td class="throughput">92</td><td class="liveness" title="Benchmark: 93%">63%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">621</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">773</td><td class="liveness" title="Benchmark: 100%">96%</td><td class="gc">9ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">68%</td><td class="gc">11ms</td><td class="throughput">93</td><td class="liveness" title="Benchmark: 100%">66%</td><td class="gc">11ms</td><td class="throughput">104</td><td class="liveness" title="Benchmark: 95%">68%</td><td class="gc">10ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">621</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">883</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">8ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">11ms</td><td class="throughput">122</td><td class="liveness" title="Benchmark: 100%">60%</td><td class="gc">12ms</td><td class="throughput">105</td><td class="liveness" title="Benchmark: 95%">72%</td><td class="gc">10ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="borrowed throughput">627</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">704</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">12ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">34%</td><td class="gc">9ms</td><td class="throughput">97</td><td class="liveness" title="Benchmark: 100%">46%</td><td class="gc">12ms</td><td class="throughput">93</td><td class="liveness" title="Benchmark: 93%">44%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">628</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">841</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">145</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">11ms</td><td class="throughput">107</td><td class="liveness" title="Benchmark: 100%">50%</td><td class="gc">11ms</td><td class="throughput">109</td><td class="liveness" title="Benchmark: 95%">52%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">628</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">844</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">148</td><td class="liveness" title="Benchmark: 100%">68%</td><td class="gc">11ms</td><td class="throughput">109</td><td class="liveness" title="Benchmark: 100%">50%</td><td class="gc">9ms</td><td class="throughput">115</td><td class="liveness" title="Benchmark: 95%">54%</td><td class="gc">10ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="borrowed throughput">628</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">58</td><td class="liveness" title="Benchmark: 99%">80%</td><td class="gc">11ms</td><td class="throughput">62</td><td class="liveness fair" title="Benchmark: 86%">86%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">628</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">74</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">65</td><td class="liveness" title="Benchmark: 99%">90%</td><td class="gc">12ms</td><td class="throughput">63</td><td class="liveness fair" title="Benchmark: 86%">88%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">628</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">82</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">63</td><td class="liveness fair" title="Benchmark: 86%">88%</td><td class="gc">0ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="borrowed throughput">625</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">775</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">101</td><td class="liveness" title="Benchmark: 100%">51%</td><td class="gc">10ms</td><td class="throughput">141</td><td class="liveness" title="Benchmark: 100%">69%</td><td class="gc">12ms</td><td class="throughput">121</td><td class="liveness" title="Benchmark: 96%">63%</td><td class="gc">10ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">625</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">795</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">113</td><td class="liveness" title="Benchmark: 100%">54%</td><td class="gc">10ms</td><td class="throughput">144</td><td class="liveness" title="Benchmark: 100%">70%</td><td class="gc">10ms</td><td class="throughput">124</td><td class="liveness" title="Benchmark: 96%">64%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">625</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="throughput">800</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">10ms</td><td class="throughput">119</td><td class="liveness" title="Benchmark: 100%">60%</td><td class="gc">12ms</td><td class="throughput">157</td><td class="liveness" title="Benchmark: 100%">75%</td><td class="gc">11ms</td><td class="throughput">130</td><td class="liveness" title="Benchmark: 96%">66%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="borrowed throughput">624</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">0ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">72</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">69</td><td class="liveness fair" title="Benchmark: 99%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">624</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">82</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">76</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">69</td><td class="liveness fair" title="Benchmark: 99%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">624</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">83</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">13ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="borrowed throughput" title="total: 1373846
+non-queued: 1373846
+main park: 0
+consume park: 0
+consume return: 0
+">597</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">15ms</td><td class="throughput" title="total: 2106652
+non-queued: 2038967
+main park: 67692
+consume park: 3
+consume return: 62273
+">906</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">16ms</td><td class="throughput" title="total: 1753087
+non-queued: 1323730
+main park: 496893
+consume park: 1651
+consume return: 414588
+">738</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">6ms</td><td class="throughput" title="total: 2154551
+non-queued: 1583736
+main park: 612846
+consume park: 1494
+consume return: 562125
+">943</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">20ms</td><td class="throughput" title="total: 1471421
+non-queued: 753364
+main park: 741150
+consume park: 458
+consume return: 714569
+">546</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">21ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput" title="total: 1376461
+non-queued: 1376461
+main park: 0
+consume park: 0
+consume return: 0
+">598</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">3ms</td><td class="throughput" title="total: 2134414
+non-queued: 2071961
+main park: 62480
+consume park: 3
+consume return: 54284
+">932</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">16ms</td><td class="throughput" title="total: 2173571
+non-queued: 1733553
+main park: 508203
+consume park: 2354
+consume return: 424803
+">947</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">17ms</td><td class="throughput" title="total: 2193310
+non-queued: 1624608
+main park: 610315
+consume park: 1575
+consume return: 559019
+">944</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">19ms</td><td class="throughput" title="total: 1570888
+non-queued: 853755
+main park: 743974
+consume park: 542
+consume return: 712964
+">612</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">21ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput" title="total: 1376566
+non-queued: 1376566
+main park: 0
+consume park: 0
+consume return: 0
+">598</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">15ms</td><td class="throughput" title="total: 2209019
+non-queued: 2153266
+main park: 55769
+consume park: 2
+consume return: 49795
+">964</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">17ms</td><td class="throughput" title="total: 2213966
+non-queued: 1778868
+main park: 507101
+consume park: 2617
+consume return: 419218
+">965</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">19ms</td><td class="throughput" title="total: 2188742
+non-queued: 1623932
+main park: 608427
+consume park: 1585
+consume return: 556347
+">955</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">19ms</td><td class="throughput" title="total: 1583325
+non-queued: 869480
+main park: 741823
+consume park: 515
+consume return: 709686
+">618</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">21ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">1253</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">3335</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4163</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">1254</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4164</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">1255</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4182</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">0ms</td><td class="borrowed throughput">4162</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+    </table>
+    <h2>Producer/Consumer Scenario (Capacity=10; Workload=10)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3" class="borrowed">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="borrowed throughput">13952</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">713</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">531</td><td class="liveness" title="Benchmark: 100%">66%</td><td class="gc">11ms</td><td class="throughput">351</td><td class="liveness" title="Benchmark: 100%">61%</td><td class="gc">10ms</td><td class="throughput">314</td><td class="liveness" title="Benchmark: 99%">61%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">13957</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">798</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">572</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">11ms</td><td class="throughput">440</td><td class="liveness" title="Benchmark: 100%">74%</td><td class="gc">12ms</td><td class="throughput">361</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">9ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">13968</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">811</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">806</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">8ms</td><td class="throughput">461</td><td class="liveness" title="Benchmark: 100%">78%</td><td class="gc">8ms</td><td class="throughput">408</td><td class="liveness" title="Benchmark: 100%">71%</td><td class="gc">0ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="borrowed throughput">18284</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">709</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">247</td><td class="liveness" title="Benchmark: 100%">33%</td><td class="gc">11ms</td><td class="throughput">350</td><td class="liveness" title="Benchmark: 100%">50%</td><td class="gc">10ms</td><td class="throughput">255</td><td class="liveness" title="Benchmark: 99%">36%</td><td class="gc">13ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">18351</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">740</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">409</td><td class="liveness" title="Benchmark: 100%">58%</td><td class="gc">10ms</td><td class="throughput">363</td><td class="liveness" title="Benchmark: 100%">50%</td><td class="gc">11ms</td><td class="throughput">347</td><td class="liveness" title="Benchmark: 99%">50%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">18362</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="throughput">804</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">566</td><td class="liveness" title="Benchmark: 100%">80%</td><td class="gc">9ms</td><td class="throughput">438</td><td class="liveness" title="Benchmark: 100%">60%</td><td class="gc">11ms</td><td class="throughput">402</td><td class="liveness" title="Benchmark: 100%">58%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="borrowed throughput">18411</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">18417</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">74</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">0ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">18419</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">81</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">74</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="borrowed throughput">16619</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">0ms</td><td class="throughput">769</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">346</td><td class="liveness" title="Benchmark: 100%">50%</td><td class="gc">10ms</td><td class="throughput">330</td><td class="liveness" title="Benchmark: 100%">46%</td><td class="gc">10ms</td><td class="throughput">333</td><td class="liveness" title="Benchmark: 99%">48%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">16899</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">783</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">370</td><td class="liveness" title="Benchmark: 100%">51%</td><td class="gc">11ms</td><td class="throughput">474</td><td class="liveness" title="Benchmark: 100%">67%</td><td class="gc">12ms</td><td class="throughput">342</td><td class="liveness" title="Benchmark: 99%">48%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">16929</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">785</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">377</td><td class="liveness" title="Benchmark: 100%">53%</td><td class="gc">9ms</td><td class="throughput">527</td><td class="liveness" title="Benchmark: 100%">75%</td><td class="gc">12ms</td><td class="throughput">391</td><td class="liveness" title="Benchmark: 100%">57%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="borrowed throughput">15908</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">77</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">71</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">15916</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">0ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">15928</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">80</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">76</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">13ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="borrowed throughput" title="total: 17650584
+non-queued: 17650584
+main park: 0
+consume park: 0
+consume return: 0
+">7670</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">4ms</td><td class="throughput" title="total: 2014572
+non-queued: 1846711
+main park: 167864
+consume park: 0
+consume return: 167857
+">875</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">16ms</td><td class="throughput" title="total: 3218765
+non-queued: 2845936
+main park: 416344
+consume park: 1391
+consume return: 367337
+">1388</td><td class="liveness" title="Benchmark: 100%">93%</td><td class="gc">19ms</td><td class="throughput" title="total: 2250462
+non-queued: 1783633
+main park: 493967
+consume park: 880
+consume return: 462280
+">995</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">18ms</td><td class="throughput" title="total: 1726344
+non-queued: 1073608
+main park: 672133
+consume park: 439
+consume return: 649716
+">619</td><td class="liveness" title="Benchmark: 100%">93%</td><td class="gc">20ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput" title="total: 17662094
+non-queued: 17662094
+main park: 0
+consume park: 0
+consume return: 0
+">7676</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">18ms</td><td class="throughput" title="total: 2075271
+non-queued: 1902674
+main park: 172601
+consume park: 1
+consume return: 172595
+">903</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">16ms</td><td class="throughput" title="total: 3270212
+non-queued: 2924593
+main park: 383992
+consume park: 1245
+consume return: 340573
+">1412</td><td class="liveness" title="Benchmark: 100%">95%</td><td class="gc">19ms</td><td class="throughput" title="total: 2273875
+non-queued: 1804685
+main park: 496207
+consume park: 841
+consume return: 464486
+">1004</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">17ms</td><td class="throughput" title="total: 1625874
+non-queued: 989079
+main park: 654265
+consume park: 401
+consume return: 633970
+">671</td><td class="liveness" title="Benchmark: 100%">94%</td><td class="gc">20ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput" title="total: 17712252
+non-queued: 17712252
+main park: 0
+consume park: 0
+consume return: 0
+">7697</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">18ms</td><td class="throughput" title="total: 2143107
+non-queued: 1964595
+main park: 178515
+consume park: 0
+consume return: 178505
+">943</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">14ms</td><td class="throughput" title="total: 3555161
+non-queued: 3267238
+main park: 318249
+consume park: 1269
+consume return: 282454
+">1519</td><td class="liveness" title="Benchmark: 100%">95%</td><td class="gc">19ms</td><td class="throughput" title="total: 2294498
+non-queued: 1824244
+main park: 495925
+consume park: 866
+consume return: 465581
+">1014</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">6ms</td><td class="throughput" title="total: 1862142
+non-queued: 1235986
+main park: 646641
+consume park: 519
+consume return: 622794
+">730</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">19ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">40303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">28939</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38273</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">49114</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">48970</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">40462</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">29773</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38303</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49130</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">49048</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">40498</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">30608</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">38517</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">49147</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">49063</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+    </table>
+    <h2>Producer/Consumer Scenario (Capacity=10; Workload=1000)</h2>
+    <table border="0" cellpadding="5" cellspacing="0">
+      <tr><th rowspan="2">&nbsp;</th><th colspan="15">Number of Threads</th></tr>
+      <tr><th colspan="3" class="borrowed">1</th><th colspan="3">2</th><th colspan="3">6</th><th colspan="3">20</th><th colspan="3">100</th></tr>
+      <tr class="even-outlier"><th rowspan="3">SYNCHRONIZED</th><td class="borrowed throughput">620</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">1159</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">239</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">153</td><td class="liveness" title="Benchmark: 100%">62%</td><td class="gc">10ms</td><td class="throughput">125</td><td class="liveness" title="Benchmark: 96%">57%</td><td class="gc">11ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">621</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">1159</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">8ms</td><td class="throughput">240</td><td class="liveness" title="Benchmark: 100%">97%</td><td class="gc">9ms</td><td class="throughput">174</td><td class="liveness" title="Benchmark: 100%">80%</td><td class="gc">11ms</td><td class="throughput">127</td><td class="liveness" title="Benchmark: 96%">56%</td><td class="gc">10ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">621</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">1160</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">241</td><td class="liveness" title="Benchmark: 100%">98%</td><td class="gc">10ms</td><td class="throughput">194</td><td class="liveness" title="Benchmark: 100%">76%</td><td class="gc">12ms</td><td class="throughput">153</td><td class="liveness" title="Benchmark: 97%">65%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">REENTRANT_LOCK</th><td class="borrowed throughput">627</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">1119</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">228</td><td class="liveness" title="Benchmark: 100%">69%</td><td class="gc">11ms</td><td class="throughput">146</td><td class="liveness" title="Benchmark: 100%">50%</td><td class="gc">11ms</td><td class="throughput">163</td><td class="liveness" title="Benchmark: 98%">45%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">628</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">1167</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">235</td><td class="liveness" title="Benchmark: 100%">62%</td><td class="gc">11ms</td><td class="throughput">211</td><td class="liveness" title="Benchmark: 100%">57%</td><td class="gc">12ms</td><td class="throughput">164</td><td class="liveness" title="Benchmark: 98%">43%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">628</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">1169</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">0ms</td><td class="throughput">236</td><td class="liveness" title="Benchmark: 100%">64%</td><td class="gc">12ms</td><td class="throughput">214</td><td class="liveness" title="Benchmark: 100%">59%</td><td class="gc">12ms</td><td class="throughput">179</td><td class="liveness" title="Benchmark: 98%">48%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">REENTRANT_LOCK_FAIR</th><td class="borrowed throughput">628</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="throughput">76</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">10ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">628</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">79</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">74</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">628</td><td class="borrowed liveness fair" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">82</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">73</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">1ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUAVA_MONITOR</th><td class="borrowed throughput">625</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">1139</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">350</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">9ms</td><td class="throughput">285</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">11ms</td><td class="throughput">281</td><td class="liveness" title="Benchmark: 99%">97%</td><td class="gc">11ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput">625</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="throughput">1142</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">356</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">286</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">284</td><td class="liveness" title="Benchmark: 99%">97%</td><td class="gc">0ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput">625</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="throughput">1148</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">360</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">0ms</td><td class="throughput">287</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">286</td><td class="liveness" title="Benchmark: 99%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3">GUAVA_MONITOR_FAIR</th><td class="borrowed throughput">624</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">0ms</td><td class="throughput">81</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 99%">100%</td><td class="gc">11ms</td><td class="throughput">68</td><td class="liveness fair" title="Benchmark: 88%">97%</td><td class="gc">0ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">624</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="throughput">81</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">10ms</td><td class="throughput">73</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">71</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">1ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">624</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="throughput">82</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">75</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">11ms</td><td class="throughput">72</td><td class="liveness fair" title="Benchmark: 100%">100%</td><td class="gc">12ms</td><td class="throughput">70</td><td class="liveness fair" title="Benchmark: 89%">98%</td><td class="gc">12ms</td></tr>
+      <tr class="odd-outlier"><th rowspan="3">GUARDED_EXECUTOR</th><td class="borrowed throughput" title="total: 1373846
+non-queued: 1373846
+main park: 0
+consume park: 0
+consume return: 0
+">597</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">15ms</td><td class="throughput" title="total: 2450539
+non-queued: 2444044
+main park: 6519
+consume park: 2
+consume return: 4419
+">1064</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">16ms</td><td class="throughput" title="total: 5627744
+non-queued: 5589651
+main park: 40366
+consume park: 231
+consume return: 36435
+">2430</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">27ms</td><td class="throughput" title="total: 3565777
+non-queued: 3236871
+main park: 350560
+consume park: 799
+consume return: 323185
+">1547</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">25ms</td><td class="throughput" title="total: 3034982
+non-queued: 2527320
+main park: 528511
+consume park: 581
+consume return: 503431
+">1148</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">27ms</td></tr>
+      <tr class="odd-median"><td class="borrowed throughput" title="total: 1376461
+non-queued: 1376461
+main park: 0
+consume park: 0
+consume return: 0
+">598</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">3ms</td><td class="throughput" title="total: 2450754
+non-queued: 2444765
+main park: 6000
+consume park: 0
+consume return: 4422
+">1064</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">17ms</td><td class="throughput" title="total: 5797866
+non-queued: 5751849
+main park: 48850
+consume park: 403
+consume return: 44645
+">2517</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">18ms</td><td class="throughput" title="total: 3612561
+non-queued: 3289570
+main park: 347194
+consume park: 909
+consume return: 317008
+">1576</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">24ms</td><td class="throughput" title="total: 2920269
+non-queued: 2398471
+main park: 542413
+consume park: 532
+consume return: 517654
+">1153</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">29ms</td></tr>
+      <tr class="odd-outlier"><td class="borrowed throughput" title="total: 1376566
+non-queued: 1376566
+main park: 0
+consume park: 0
+consume return: 0
+">598</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">15ms</td><td class="throughput" title="total: 2466130
+non-queued: 2459732
+main park: 6413
+consume park: 2
+consume return: 4154
+">1071</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">17ms</td><td class="throughput" title="total: 5905601
+non-queued: 5885883
+main park: 21974
+consume park: 378
+consume return: 18379
+">2568</td><td class="liveness" title="Benchmark: 100%">100%</td><td class="gc">28ms</td><td class="throughput" title="total: 3613629
+non-queued: 3287904
+main park: 348562
+consume park: 844
+consume return: 319638
+">1584</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">25ms</td><td class="throughput" title="total: 2723747
+non-queued: 2274320
+main park: 467256
+consume park: 464
+consume return: 446288
+">1244</td><td class="liveness" title="Benchmark: 100%">99%</td><td class="gc">17ms</td></tr>
+      <tr class="even-outlier"><th rowspan="3" class="borrowed">BASELINE</th><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">10ms</td><td class="borrowed throughput">1253</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">3335</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4163</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">12ms</td></tr>
+      <tr class="even-median"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">1254</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">12ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4164</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4161</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+      <tr class="even-outlier"><td class="borrowed throughput">638</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">11ms</td><td class="borrowed throughput">1255</td><td class="borrowed liveness" title="Benchmark: 100%">100%</td><td class="borrowed gc">8ms</td><td class="borrowed throughput">3336</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">9ms</td><td class="borrowed throughput">4182</td><td class="borrowed liveness" title="Benchmark: 100%">98%</td><td class="borrowed gc">0ms</td><td class="borrowed throughput">4162</td><td class="borrowed liveness" title="Benchmark: 100%">99%</td><td class="borrowed gc">11ms</td></tr>
+    </table>
+  </body>
+</html>
