@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.AbstractOwnableSynchronizer;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.BooleanSupplier;
@@ -816,13 +815,11 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       throw new InterruptedException();
     }
 
-    totalCounter.increment();
     final Object initialResult = initialAcquireAndExecute(guard, runnable, supplier, true);
 
     assert initialResult != NOT_EXECUTED_YET;
 
     if (initialResult == null || initialResult.getClass() != Node.class) {
-      nonQueuedCounter.increment();
       return initialResult;
     }
 
@@ -836,7 +833,6 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         return subsequentResult;
       }
 
-      mainParkCounter.increment();
       LockSupport.park(this);
 
       final Object consumedResult = consumeResultOrInterrupt(currentNode);
@@ -860,13 +856,11 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
       final Runnable runnable,
       final Supplier<?> supplier) {
 
-    totalCounter.increment();
     final Object initialResult = initialAcquireAndExecute(null, runnable, supplier, true);
 
     assert initialResult != NOT_EXECUTED_YET;
 
     if (initialResult == null || initialResult.getClass() != Node.class) {
-      nonQueuedCounter.increment();
       return initialResult;
     }
 
@@ -886,7 +880,6 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
           interrupted = true;
         }
 
-        mainParkCounter.increment();
         LockSupport.park(this);
 
         final Object consumedResult = consumeResult(currentNode, false);
@@ -1266,13 +1259,11 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
             if (Thread.interrupted()) {
               interrupted = true;
             }
-            consumeParkCounter.increment();
             LockSupport.park(this);
             continue;
           case RETURNED:
             Object result = currentNode.taskOrResult;
             currentNode.taskOrResult = null;
-            consumeReturnCounter.increment();
             return result;
           case THREW:
             Throwable thrown = (Throwable) currentNode.taskOrResult;
@@ -1366,12 +1357,6 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
 
   private transient volatile int state = 0;
   private transient volatile Node tail = null;
-
-  public static final LongAdder totalCounter = new LongAdder();
-  public static final LongAdder nonQueuedCounter = new LongAdder();
-  public static final LongAdder mainParkCounter = new LongAdder();
-  public static final LongAdder consumeParkCounter = new LongAdder();
-  public static final LongAdder consumeReturnCounter = new LongAdder();
 
   static final class Node {
 
