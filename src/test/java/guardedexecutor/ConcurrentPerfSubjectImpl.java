@@ -53,9 +53,27 @@ public enum ConcurrentPerfSubjectImpl {
     }
   },
 
-  GUARDED_EXECUTOR {
+  GUARDED_EXECUTOR_0 {
     @Override public ConcurrentPerfSubject newSubject(int capacity) {
-      return new GuardedExecutorPerfSubject(capacity);
+      return new GuardedExecutorPerfSubject(capacity, 0);
+    }
+  },
+
+  GUARDED_EXECUTOR_10 {
+    @Override public ConcurrentPerfSubject newSubject(int capacity) {
+      return new GuardedExecutorPerfSubject(capacity, 10);
+    }
+  },
+
+  GUARDED_EXECUTOR_100 {
+    @Override public ConcurrentPerfSubject newSubject(int capacity) {
+      return new GuardedExecutorPerfSubject(capacity, 100);
+    }
+  },
+
+  GUARDED_EXECUTOR_1000 {
+    @Override public ConcurrentPerfSubject newSubject(int capacity) {
+      return new GuardedExecutorPerfSubject(capacity, 1000);
     }
   };
 
@@ -196,9 +214,9 @@ public enum ConcurrentPerfSubjectImpl {
 
     private final GuardedExecutor executor;
 
-    GuardedExecutorPerfSubject(int capacity) {
+    GuardedExecutorPerfSubject(int capacity, int pseudoSpins) {
       super(capacity);
-      executor = new GuardedExecutor();
+      executor = new GuardedExecutor(pseudoSpins);
     }
 
     @Override

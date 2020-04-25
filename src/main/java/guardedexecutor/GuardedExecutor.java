@@ -280,10 +280,18 @@ import static java.util.Objects.requireNonNull;
 public final class GuardedExecutor extends AbstractOwnableSynchronizer
     implements Executor, Serializable {
 
+  private final int pseudoSpins;
+
   /**
    * Constructs a new {@code GuardedExecutor}.
    */
-  public GuardedExecutor() {}
+  public GuardedExecutor() {
+    this(0);
+  }
+
+  public GuardedExecutor(int pseudoSpins) {
+    this.pseudoSpins = pseudoSpins;
+  }
 
   // ===============================================================================================
   // Main Public API
@@ -726,6 +734,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     boolean startedTiming = false;
     long lastNanoTime = 0L; // only valid if startedTiming
     long remainingNanos = 0L; // only valid if startedTiming
+    int pseudoSpins = this.pseudoSpins;
 
     while (true) {
       final Object subsequentResult =
@@ -755,6 +764,9 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         } else {
           throw new TimeoutException();
         }
+      } else if (pseudoSpins > 0) {
+        Thread.onSpinWait();
+        pseudoSpins--;
       } else if (remainingNanos > SPIN_FOR_TIMEOUT_THRESHOLD) {
         LockSupport.parkNanos(this, remainingNanos);
       }
@@ -824,6 +836,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     }
 
     final Node currentNode = (Node) initialResult;
+    int pseudoSpins = this.pseudoSpins;
 
     while (true) {
       final Object subsequentResult =
@@ -833,7 +846,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
         return subsequentResult;
       }
 
-      LockSupport.park(this);
+      if (pseudoSpins > 0) {
+        Thread.onSpinWait();
+        pseudoSpins--;
+      } else {
+        LockSupport.park(this);
+      }
 
       final Object consumedResult = consumeResultOrInterrupt(currentNode);
 
@@ -865,6 +883,7 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
     }
 
     final Node currentNode = (Node) initialResult;
+    int pseudoSpins = this.pseudoSpins;
 
     boolean interrupted = false;
     try {
@@ -880,7 +899,12 @@ public final class GuardedExecutor extends AbstractOwnableSynchronizer
           interrupted = true;
         }
 
-        LockSupport.park(this);
+        if (pseudoSpins > 0) {
+          Thread.onSpinWait();
+          pseudoSpins--;
+        } else {
+          LockSupport.park(this);
+        }
 
         final Object consumedResult = consumeResult(currentNode, false);
 
